@@ -31,4 +31,4 @@ jobs:
         with:
           file: Dockerfile
           push: true
-          tags: {{ secrets.DOCKER_USERNAME }}/{{ secrets.SERVICE_NAME }}:{{ matrix.os }}
+          tags: "$\{\{ secrets.DOCKER_USERNAME \}\}/\$\{\{ secrets.SERVICE_NAME \}\}:\$\{\{ matrix.os \}\}"
