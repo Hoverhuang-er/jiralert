@@ -1,10 +1,12 @@
-FROM golang:1.15 AS builder
-WORKDIR /go/src/github.com/prometheus-community/jiralert
-COPY . /go/src/github.com/prometheus-community/jiralert
-RUN GO111MODULE=on GOBIN=/tmp/bin make
-
-FROM quay.io/prometheus/busybox-linux-amd64:latest
-
-COPY --from=builder /go/src/github.com/prometheus-community/jiralert/jiralert /bin/jiralert
-
-ENTRYPOINT [ "/bin/jiralert" ]
+# Build Golang
+FROM docker.io/golang:alpine3.15 AS builder
+WORKDIR /opt
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /opt/app .
+RUN echo "Build Complete"
+FROM debian:10.10-slim
+WORKDIR /opt
+COPY --from=builder /opt/app /opt/app
+COPY --from=builder /opt/jiralert.yaml /opt/jiralert.yaml
+COPY --from=builder /opt/jiralert.tmpl /opt/jiralert.tmpl
+CMD ["/opt/app","ska"]
