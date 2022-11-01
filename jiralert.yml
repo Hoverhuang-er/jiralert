@@ -2,7 +2,7 @@
 # Global defaults, applied to all receivers where not explicitly overridden. Optional.
 defaults:
   # API access fields.
-  api_url: https://jiralert.atlassian.net
+  api_url: https://simple-labs.rest:8080
   user: jiralert
   password: 'JIRAlert'
 
@@ -50,7 +50,7 @@ receivers:
     #
     # Automatically resolve jira issues when alert is resolved. Optional. If declared, ensure state is not an empty string.
     auto_resolve:
-      state: 'Done' 
+      state: 'Done'
 
 # File containing template definitions. Required.
 template: jiralert.tmpl
