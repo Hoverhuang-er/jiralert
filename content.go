@@ -99,7 +99,7 @@ func pageTemplate(name string) *template.Template {
 // HomeHandlerFunc is the HTTP handler for the home page (`/`).
 func HomeHandlerFunc() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
+		if r.Method != http.MethodGet {
 			w.WriteHeader(http.StatusBadRequest)
 			_, _ = w.Write([]byte("only GET allowed"))
 			return
