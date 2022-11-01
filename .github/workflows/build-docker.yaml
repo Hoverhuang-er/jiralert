@@ -23,7 +23,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       -
-        name: Build amway web
+        name: Build Prometheus Jiralert
         uses: docker/build-push-action@v3
         with:
           file: Dockerfile
