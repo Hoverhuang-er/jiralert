@@ -5,14 +5,13 @@ on:
     branches:
       - main
 
-strategy:
-  matrix:
-    go-version: [1.19.x]
-    os: [ubuntu-latest,macos-latest,windows-latest]
-
 jobs:
+  strategy:
+    matrix:
+      go-version: [ 1.19.x ]
+      os: [ ubuntu-latest,macos-latest,windows-latest ]
   docker:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
       -
         name: Set up QEMU
@@ -32,4 +31,4 @@ jobs:
         with:
           file: Dockerfile
           push: true
-          tags: {{ secrets.DOCKER_USERNAME }}/{{ secrets.SERVICE_NAME }}:{{ matrix.os }}-latest
+          tags: {{ secrets.DOCKER_USERNAME }}/{{ secrets.SERVICE_NAME }}:{{ matrix.os }}

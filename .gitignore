@@ -1,6 +1,6 @@
 /.project
 /.idea
 /release
-/jiralert
+/helm/jiralert
 /jiralert*.tar.gz
 /vendor
