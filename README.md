@@ -14,7 +14,7 @@ If a corresponding JIRA issue already exists but is resolved, it is reopened. A 
 ### Install with Helm
 
 ```shell
-helm install ./helm/jiralert -n {your-namespace}
+charts install ./charts/jiralert -n {your-namespace}
 ```
 
 ### Install with Binary
