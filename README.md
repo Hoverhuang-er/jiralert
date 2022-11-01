@@ -21,7 +21,7 @@ helm install ./charts/jiralert -n {your-namespace}
 
 ```bash
 
-Get JIRAlert, either as a [packaged release](https://github.com/prometheus-community/jiralert/releases) or build it yourself:
+Get JIRAlert, either as a [packaged release.yaml](https://github.com/prometheus-community/jiralert/releases) or build it yourself:
 
 ```
 $ go get github.com/prometheus-community/jiralert/cmd/jiralert

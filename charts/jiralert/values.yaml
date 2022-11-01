@@ -1,7 +1,7 @@
 global:
   imagePullSecrets: []
 
-# -- String to partially override jiralert.fullname template (will maintain the release name)
+# -- String to partially override jiralert.fullname template (will maintain the release.yaml name)
 nameOverride: ""
 
 # -- Override the namespace
