@@ -3,6 +3,7 @@ name: Build amway-web
 on:
   push:
     branches:
+      - master
       - main
 
 jobs:
