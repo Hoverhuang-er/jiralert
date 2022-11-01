@@ -8,10 +8,6 @@ on:
 jobs:
 
   docker:
-    strategy:
-      matrix:
-        go-version: [ 1.19.x ]
-        os: [ ubuntu-latest,macos-latest,windows-latest ]
     runs-on: ${{ matrix.os }}
     steps:
       -
@@ -32,4 +28,4 @@ jobs:
         with:
           file: Dockerfile
           push: true
-          tags: "cdfng/prometheus-jiralert:${{ matrix.os }}"
+          tags: "cdfng/prometheus-jiralert:latest"

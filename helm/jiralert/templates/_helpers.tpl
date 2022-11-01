@@ -2,7 +2,7 @@
 Expand the name of the chart.
 */}}
 {{- define "jiralert.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- default .Release.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
@@ -50,13 +50,47 @@ app.kubernetes.io/name: {{ include "jiralert.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
-{{/**/}}
-{{/*Create the name of the service account to use*/}}
-{{/**/}}
-{{/*{{- define "jiralert.serviceAccountName" -}}*/}}
-{{/*{{- if .Values.serviceAccount.create }}*/}}
-{{/*{{- default (include "jiralert.fullname" .) .Values.serviceAccount.name }}*/}}
-{{/*{{- else }}*/}}
-{{/*{{- default "default" .Values.serviceAccount.name }}*/}}
-{{/*{{- end }}*/}}
-{{/*{{- end }}*/}}
+
+{{/*
+Create the name of the service account to use
+*/}}
+{{- define "jiralert.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create }}
+{{- default (include "jiralert.fullname" .) .Values.serviceAccount.name }}
+{{- else }}
+{{- default "default" .Values.serviceAccount.name }}
+{{- end }}
+{{- end }}
+
+{{/*
+Return the appropriate apiVersion for rbac.
+*/}}
+{{- define "rbac.apiVersion" -}}
+{{- if .Capabilities.APIVersions.Has "rbac.authorization.k8s.io/v1" }}
+{{- print "rbac.authorization.k8s.io/v1" -}}
+{{- else -}}
+{{- print "rbac.authorization.k8s.io/v1beta1" -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "jiralert.namespace" -}}
+  {{- if .Values.namespaceOverride -}}
+    {{- .Values.namespaceOverride -}}
+  {{- else -}}
+    {{- .Release.Namespace -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+Return the appropriate apiVersion for ingress.
+*/}}
+{{- define "jiralert.ingress.apiversion" -}}
+{{- if semverCompare ">=1.19-0" .Capabilities.KubeVersion.GitVersion -}}
+{{- print "networking.k8s.io/v1" -}}
+{{- else if semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion -}}
+{{- print "networking.k8s.io/v1beta1" -}}
+{{- else -}}
+{{- print "extensions/v1beta1" -}}
+{{- end }}
+{{- end }}
+Footer

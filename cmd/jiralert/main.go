@@ -15,7 +15,6 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -30,7 +29,6 @@ import (
 	"github.com/prometheus-community/jiralert/pkg/config"
 	"github.com/prometheus-community/jiralert/pkg/notify"
 	"github.com/prometheus-community/jiralert/pkg/template"
-
 	_ "net/http/pprof"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -42,38 +40,39 @@ const (
 	logFormatJSON   = "json"
 )
 
-var (
-	listenAddress = flag.String("listen-address", ":9097", "The address to listen on for HTTP requests.")
-	configFile    = flag.String("config", "config/jiralert.yml", "The JIRAlert configuration file")
-	logLevel      = flag.String("log.level", "info", "Log filtering level (debug, info, warn, error)")
-	logFormat     = flag.String("log.format", logFormatLogfmt, "Log format to use ("+logFormatLogfmt+", "+logFormatJSON+")")
-	hashJiraLabel = flag.Bool("hash-jira-label", false, "if enabled: renames ALERT{...} to JIRALERT{...}; also hashes the key-value pairs inside of JIRALERT{...} in the created jira issue labels"+
-		"- this ensures that the label text does not overflow the allowed length in jira (255)")
-
-	// Version is the build version, set by make to latest git tag/hash via `-ldflags "-X main.Version=$(VERSION)"`.
-	Version = "<local build>"
-)
+type Flg struct {
+	Loglevel      string
+	Logfmt        string
+	Config        string
+	ListenAddr    string
+	HashJiraLabel bool
+	Version       string
+}
 
 func main() {
-	if os.Getenv("DEBUG") != "" {
-		runtime.SetBlockProfileRate(1)
-		runtime.SetMutexProfileFraction(1)
+	runtime.SetBlockProfileRate(1)
+	runtime.SetMutexProfileFraction(1)
+	fg := Flg{
+		Loglevel:      "info",
+		Logfmt:        logFormatLogfmt,
+		Config:        "./jiralert.yml",
+		ListenAddr:    ":8080",
+		HashJiraLabel: false,
+		Version:       "<local build>",
 	}
 
-	flag.Parse()
+	var logger = setupLogger(fg.Loglevel, fg.Logfmt)
+	level.Info(logger).Log("msg", "starting JIRAlert", "version", fg.Version)
 
-	var logger = setupLogger(*logLevel, *logFormat)
-	level.Info(logger).Log("msg", "starting JIRAlert", "version", Version)
-
-	if !*hashJiraLabel {
+	if !fg.HashJiraLabel {
 		level.Warn(logger).Log("msg", "Using deprecated jira label generation - "+
 			"please read https://github.com/prometheus-community/jiralert/pull/79 "+
 			"and try -hash-jira-label")
 	}
 
-	config, _, err := config.LoadFile(*configFile, logger)
+	config, _, err := config.LoadFile(fg.Config, logger)
 	if err != nil {
-		level.Error(logger).Log("msg", "error loading configuration", "path", *configFile, "err", err)
+		level.Error(logger).Log("msg", "error loading configuration", "path", fg.Config, "err", err)
 		os.Exit(1)
 	}
 
@@ -122,7 +121,7 @@ func main() {
 			return
 		}
 
-		if retry, err := notify.NewReceiver(logger, conf, tmpl, client.Issue).Notify(&data, *hashJiraLabel); err != nil {
+		if retry, err := notify.NewReceiver(logger, conf, tmpl, client.Issue).Notify(&data, fg.HashJiraLabel); err != nil {
 			var status int
 			if retry {
 				// Instruct Alertmanager to retry.
@@ -143,13 +142,13 @@ func main() {
 	http.Handle("/metrics", promhttp.Handler())
 
 	if os.Getenv("PORT") != "" {
-		*listenAddress = ":" + os.Getenv("PORT")
+		fg.ListenAddr = ":" + os.Getenv("PORT")
 	}
 
-	level.Info(logger).Log("msg", "listening", "address", *listenAddress)
-	err = http.ListenAndServe(*listenAddress, nil)
+	level.Info(logger).Log("msg", "listening", "address", fg.ListenAddr)
+	err = http.ListenAndServe(fg.ListenAddr, nil)
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to start HTTP server", "address", *listenAddress)
+		level.Error(logger).Log("msg", "failed to start HTTP server", "address", fg.ListenAddr)
 		os.Exit(1)
 	}
 }
