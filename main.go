@@ -212,6 +212,7 @@ func logAlerts(alerts atmpl.Data, logger klog.Logger) error {
 			"fingerprint", alert.Fingerprint); err != nil {
 			return err
 		}
+		log.Infof("OUTPUT:%v", alertLogger)
 	}
 	return nil
 }
