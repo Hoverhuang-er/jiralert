@@ -29,3 +29,5 @@ jobs:
           file: Dockerfile
           push: true
           tags: "cdfng/prometheus-jiralert:latest"
+          build-args: |
+            COMMIT_ARG=${{ github.sha }}

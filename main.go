@@ -16,6 +16,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Hoverhuang-er/go-actuator"
 	"net/http"
 	"os"
 	"runtime"
@@ -138,11 +139,12 @@ func main() {
 
 	http.HandleFunc("/", HomeHandlerFunc())
 	http.HandleFunc("/config", ConfigHandlerFunc(config))
-	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) { http.Error(w, "OK", http.StatusOK) })
+	http.HandleFunc("/healthz", Healthcheck)
+	http.HandleFunc("/actuator/*endpoint", Healthcheck)
 	http.Handle("/metrics", promhttp.Handler())
 
 	if os.Getenv("PORT") != "" {
-		fg.ListenAddr = ":" + os.Getenv("PORT")
+		fg.ListenAddr = ":8080"
 	}
 
 	level.Info(logger).Log("msg", "listening", "address", fg.ListenAddr)
@@ -194,5 +196,17 @@ func setupLogger(lvl string, fmt string) (logger log.Logger) {
 	}
 	logger = level.NewFilter(logger, filter)
 	logger = log.With(logger, "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
+	return
+}
+
+func Healthcheck(w http.ResponseWriter, r *http.Request) {
+	versionBody, _ := os.ReadFile("git_commit")
+	getactuator := actuator.GetActuatorHandler(&actuator.Config{
+		Env:     "ft1",
+		Name:    "jiralert",
+		Port:    8080,
+		Version: fmt.Sprintf("%s", versionBody),
+	})
+	getactuator(w, r)
 	return
 }
