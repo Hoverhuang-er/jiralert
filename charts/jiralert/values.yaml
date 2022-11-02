@@ -11,7 +11,7 @@ namespaceOverride: ""
 fullnameOverride: ""
 
 image:
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   # -- jiralert image registry
   repository: docker.io/cdfng/prometheus-jiralert
   tag: "latest"
@@ -72,16 +72,16 @@ config:
   template: jiralert.tmpl
 
   # Example: https://github.com/prometheus-community/jiralert/blob/master/examples/jiralert.yml
-  defaults:
-    # API access fields.
-    api_url: "https://example.atlassian.net"
-    # user: {{ .config.jiraUser }}
-    # password: '{{ .config.jiraToken }}'
-    summary: '{{`{{ template "jira.summary" . }}`}}'
-    description: '{{`{{ template "jira.description" . }}`}}'
-    issue_type: Bug
-    reopen_state: "To Do"
-    reopen_duration: 0h
+#  defaults:
+#    # API access fields.
+#    api_url: "https://example.atlassian.net"
+#    # user: {{ .config.jiraUser }}
+#    # password: '{{ .config.jiraToken }}'
+#    summary: '{{`{{ template "jira.summary" . }}`}}'
+#    description: '{{`{{ template "jira.description" . }}`}}'
+#    issue_type: Bug
+#    reopen_state: "To Do"
+#    reopen_duration: 0h
 
   # Receiver definitions. At least one must be defined.
   receivers: []

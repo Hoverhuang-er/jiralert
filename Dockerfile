@@ -13,4 +13,4 @@ RUN echo CommitId:$COMMIT_ID BuildTime:$BUILD_DATE > /opt/git_commit
 COPY --from=builder /opt/app /opt/app
 COPY --from=builder /opt/jiralert.yml /opt/jiralert.yml
 COPY --from=builder /opt/jiralert.tmpl /opt/jiralert.tmpl
-CMD ["/opt/app","ska"]
+CMD ["/opt/app"]
