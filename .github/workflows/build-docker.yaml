@@ -30,4 +30,5 @@ jobs:
           push: true
           tags: "cdfng/prometheus-jiralert:latest"
           build-args: |
+            BUILD_ARG=${{ github.event.head_commit.timestamp }}
             COMMIT_ARG=${{ github.sha }}
