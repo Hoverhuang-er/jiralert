@@ -18,7 +18,7 @@ import (
 	"html/template"
 	"net/http"
 
-	"jiralert/pkg/config"
+	"github.com/Hoverhuang-er/jiralert/pkg/config"
 )
 
 const (

@@ -14,19 +14,17 @@ package notify
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"testing"
 	"time"
 
 	"github.com/trivago/tgo/tcontainer"
 
+	"github.com/Hoverhuang-er/jiralert/pkg/alertmanager"
+	"github.com/Hoverhuang-er/jiralert/pkg/config"
+	"github.com/Hoverhuang-er/jiralert/pkg/template"
 	"github.com/andygrunwald/go-jira"
-	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-	"github.com/prometheus-community/jiralert/pkg/alertmanager"
-	"github.com/prometheus-community/jiralert/pkg/config"
-	"github.com/prometheus-community/jiralert/pkg/template"
 	"github.com/stretchr/testify/require"
 )
 
@@ -540,7 +538,6 @@ func TestNotify_JIRAInteraction(t *testing.T) {
 			fakeJira := tcase.initJira(t)
 
 			receiver := NewReceiver(
-				log.NewLogfmtLogger(os.Stderr),
 				tcase.inputConfig,
 				template.SimpleTemplate(),
 				fakeJira,

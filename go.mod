@@ -1,4 +1,4 @@
-module jiralert
+module github.com/Hoverhuang-er/jiralert
 
 go 1.19
 

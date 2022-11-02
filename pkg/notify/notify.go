@@ -21,13 +21,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Hoverhuang-er/jiralert/pkg/alertmanager"
+	"github.com/Hoverhuang-er/jiralert/pkg/config"
+	"github.com/Hoverhuang-er/jiralert/pkg/template"
 	"github.com/andygrunwald/go-jira"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/trivago/tgo/tcontainer"
-	"jiralert/pkg/alertmanager"
-	"jiralert/pkg/config"
-	"jiralert/pkg/template"
 )
 
 // TODO(bwplotka): Consider renaming this package to ticketer.

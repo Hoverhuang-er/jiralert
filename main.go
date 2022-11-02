@@ -22,16 +22,16 @@ import (
 	"runtime"
 	"strconv"
 
+	"github.com/Hoverhuang-er/jiralert/pkg/alertmanager"
+	"github.com/Hoverhuang-er/jiralert/pkg/config"
+	"github.com/Hoverhuang-er/jiralert/pkg/notify"
+	"github.com/Hoverhuang-er/jiralert/pkg/template"
 	"github.com/andygrunwald/go-jira"
 	klog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	atmpl "github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
-	"jiralert/pkg/alertmanager"
-	"jiralert/pkg/config"
-	"jiralert/pkg/notify"
-	"jiralert/pkg/template"
 	_ "net/http/pprof"
 )
 
