@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-jiralert
+  labels:
+    app: prometheus-jiralert
+spec:
+  selector:
+    matchLabels:
+      app: prometheus-jiralert
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: prometheus-jiralert
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '8080'
+        prometheus.io/path: '/metrics'
+    spec:
+      containers:
+        - name: prometheus-jiralert
+          image: cdfng/prometheus-jiralert:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          ports:
+            - name: prometheus-jiralert
+              containerPort: 8080
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-jiralert
+  labels:
+    app: prometheus-jiralert
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: prometheus-jiralert
+  selector:
+    app: prometheus-jiralert
