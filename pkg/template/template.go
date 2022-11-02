@@ -47,7 +47,7 @@ var funcs = template.FuncMap{
 }
 
 // LoadTemplate reads and parses all templates defined in the given file and constructs a jiralert.Template.
-func LoadTemplate(path string, logger log.Logger) (*Template, error) {
+func LoadTemplate(path string) (*Template, error) {
 	log.Debug("msg", "loading templates", "path", path)
 	tmpl, err := template.New("").Option("missingkey=zero").Funcs(funcs).ParseFiles(path)
 	if err != nil {

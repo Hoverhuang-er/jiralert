@@ -28,7 +28,7 @@ spec:
               memory: 128Mi
             limits:
               cpu: 100m
-              memory: 128Mi
+              memory: 64Mi
           ports:
             - name: prometheus-jiralert
               containerPort: 8080

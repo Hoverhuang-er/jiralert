@@ -23,11 +23,11 @@ import (
 
 	"github.com/andygrunwald/go-jira"
 	"github.com/pkg/errors"
-	"github.com/prometheus-community/jiralert/pkg/alertmanager"
-	"github.com/prometheus-community/jiralert/pkg/config"
-	"github.com/prometheus-community/jiralert/pkg/template"
 	log "github.com/sirupsen/logrus"
 	"github.com/trivago/tgo/tcontainer"
+	"jiralert/pkg/alertmanager"
+	"jiralert/pkg/config"
+	"jiralert/pkg/template"
 )
 
 // TODO(bwplotka): Consider renaming this package to ticketer.
