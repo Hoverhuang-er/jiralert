@@ -9,7 +9,7 @@ ARG COMMIT_ARG
 ARG BUILD_ARG
 ENV COMMIT_ID $COMMIT_ARG
 ENV BUILD_DATE $BUILD_ARG
-RUN echo CommitId:$COMMIT_ID\nBuildTime:$BUILD_DATE > /opt/git_commit
+RUN echo CommitId:$COMMIT_ID BuildTime:$BUILD_DATE > /opt/git_commit
 COPY --from=builder /opt/app /opt/app
 COPY --from=builder /opt/jiralert.yml /opt/jiralert.yml
 COPY --from=builder /opt/jiralert.tmpl /opt/jiralert.tmpl

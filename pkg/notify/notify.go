@@ -22,12 +22,11 @@ import (
 	"time"
 
 	"github.com/andygrunwald/go-jira"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	"github.com/pkg/errors"
 	"github.com/prometheus-community/jiralert/pkg/alertmanager"
 	"github.com/prometheus-community/jiralert/pkg/config"
 	"github.com/prometheus-community/jiralert/pkg/template"
+	log "github.com/sirupsen/logrus"
 	"github.com/trivago/tgo/tcontainer"
 )
 
@@ -44,7 +43,6 @@ type jiraIssueService interface {
 
 // Receiver wraps a specific Alertmanager receiver with its configuration and templates, creating/updating/reopening Jira issues based on Alertmanager notifications.
 type Receiver struct {
-	logger log.Logger
 	client jiraIssueService
 	// TODO(bwplotka): Consider splitting receiver config with ticket service details.
 	conf *config.ReceiverConfig
@@ -54,8 +52,8 @@ type Receiver struct {
 }
 
 // NewReceiver creates a Receiver using the provided configuration, template and jiraIssueService.
-func NewReceiver(logger log.Logger, c *config.ReceiverConfig, t *template.Template, client jiraIssueService) *Receiver {
-	return &Receiver{logger: logger, conf: c, tmpl: t, client: client, timeNow: time.Now}
+func NewReceiver(c *config.ReceiverConfig, t *template.Template, client jiraIssueService) *Receiver {
+	return &Receiver{conf: c, tmpl: t, client: client, timeNow: time.Now}
 }
 
 // Notify manages JIRA issues based on alertmanager webhook notify message.
@@ -102,7 +100,7 @@ func (r *Receiver) Notify(data *alertmanager.Data, hashJiraLabel bool) (bool, er
 
 		if len(data.Alerts.Firing()) == 0 {
 			if r.conf.AutoResolve != nil {
-				level.Debug(r.logger).Log("msg", "no firing alert; resolving issue", "key", issue.Key, "label", issueGroupLabel)
+				log.Debug("msg", "no firing alert; resolving issue", "key", issue.Key, "label", issueGroupLabel)
 				retry, err := r.resolveIssue(issue.Key)
 				if err != nil {
 					return retry, err
@@ -110,32 +108,32 @@ func (r *Receiver) Notify(data *alertmanager.Data, hashJiraLabel bool) (bool, er
 				return false, nil
 			}
 
-			level.Debug(r.logger).Log("msg", "no firing alert; summary checked, nothing else to do.", "key", issue.Key, "label", issueGroupLabel)
+			log.Debug("msg", "no firing alert; summary checked, nothing else to do.", "key", issue.Key, "label", issueGroupLabel)
 			return false, nil
 		}
 
 		// The set of JIRA status categories is fixed, this is a safe check to make.
 		if issue.Fields.Status.StatusCategory.Key != "done" {
-			level.Debug(r.logger).Log("msg", "issue is unresolved, all is done", "key", issue.Key, "label", issueGroupLabel)
+			log.Debug("msg", "issue is unresolved, all is done", "key", issue.Key, "label", issueGroupLabel)
 			return false, nil
 		}
 
 		if r.conf.WontFixResolution != "" && issue.Fields.Resolution != nil &&
 			issue.Fields.Resolution.Name == r.conf.WontFixResolution {
-			level.Info(r.logger).Log("msg", "issue was resolved as won't fix, not reopening", "key", issue.Key, "label", issueGroupLabel, "resolution", issue.Fields.Resolution.Name)
+			log.Info("msg", "issue was resolved as won't fix, not reopening", "key", issue.Key, "label", issueGroupLabel, "resolution", issue.Fields.Resolution.Name)
 			return false, nil
 		}
 
-		level.Info(r.logger).Log("msg", "issue was recently resolved, reopening", "key", issue.Key, "label", issueGroupLabel)
+		log.Info("msg", "issue was recently resolved, reopening", "key", issue.Key, "label", issueGroupLabel)
 		return r.reopen(issue.Key)
 	}
 
 	if len(data.Alerts.Firing()) == 0 {
-		level.Debug(r.logger).Log("msg", "no firing alert; nothing to do.", "label", issueGroupLabel)
+		log.Debug("msg", "no firing alert; nothing to do.", "label", issueGroupLabel)
 		return false, nil
 	}
 
-	level.Info(r.logger).Log("msg", "no recent matching issue found, creating new issue", "label", issueGroupLabel)
+	log.Info("msg", "no recent matching issue found, creating new issue", "label", issueGroupLabel)
 
 	issueType, err := r.tmpl.Execute(r.conf.IssueType, data)
 	if err != nil {
@@ -276,24 +274,24 @@ func (r *Receiver) search(project, issueLabel string) (*jira.Issue, bool, error)
 		MaxResults: 2,
 	}
 
-	level.Debug(r.logger).Log("msg", "search", "query", query, "options", fmt.Sprintf("%+v", options))
+	log.Debug("msg", "search", "query", query, "options", fmt.Sprintf("%+v", options))
 	issues, resp, err := r.client.Search(query, options)
 	if err != nil {
-		retry, err := handleJiraErrResponse("Issue.Search", resp, err, r.logger)
+		retry, err := handleJiraErrResponse("Issue.Search", resp, err)
 		return nil, retry, err
 	}
 
 	if len(issues) == 0 {
-		level.Debug(r.logger).Log("msg", "no results", "query", query)
+		log.Debug("msg", "no results", "query", query)
 		return nil, false, nil
 	}
 
 	issue := issues[0]
 	if len(issues) > 1 {
-		level.Warn(r.logger).Log("msg", "more than one issue matched, picking most recently resolved", "query", query, "issues", issues, "picked", issue)
+		log.Warn("msg", "more than one issue matched, picking most recently resolved", "query", query, "issues", issues, "picked", issue)
 	}
 
-	level.Debug(r.logger).Log("msg", "found", "issue", issue, "query", query)
+	log.Debug("msg", "found", "issue", issue, "query", query)
 	return &issue, false, nil
 }
 
@@ -309,7 +307,7 @@ func (r *Receiver) findIssueToReuse(project string, issueGroupLabel string) (*ji
 
 	resolutionTime := time.Time(issue.Fields.Resolutiondate)
 	if resolutionTime != (time.Time{}) && resolutionTime.Add(time.Duration(*r.conf.ReopenDuration)).Before(r.timeNow()) && *r.conf.ReopenDuration != 0 {
-		level.Debug(r.logger).Log("msg", "existing resolved issue is too old to reopen, skipping", "key", issue.Key, "label", issueGroupLabel, "resolution_time", resolutionTime.Format(time.RFC3339), "reopen_duration", *r.conf.ReopenDuration)
+		log.Debug("msg", "existing resolved issue is too old to reopen, skipping", "key", issue.Key, "label", issueGroupLabel, "resolution_time", resolutionTime.Format(time.RFC3339), "reopen_duration", *r.conf.ReopenDuration)
 		return nil, false, nil
 	}
 
@@ -318,7 +316,7 @@ func (r *Receiver) findIssueToReuse(project string, issueGroupLabel string) (*ji
 }
 
 func (r *Receiver) updateSummary(issueKey string, summary string) (bool, error) {
-	level.Debug(r.logger).Log("msg", "updating issue with new summary", "key", issueKey, "summary", summary)
+	log.Debug("msg", "updating issue with new summary", "key", issueKey, "summary", summary)
 
 	issueUpdate := &jira.Issue{
 		Key: issueKey,
@@ -328,14 +326,14 @@ func (r *Receiver) updateSummary(issueKey string, summary string) (bool, error) 
 	}
 	issue, resp, err := r.client.UpdateWithOptions(issueUpdate, nil)
 	if err != nil {
-		return handleJiraErrResponse("Issue.UpdateWithOptions", resp, err, r.logger)
+		return handleJiraErrResponse("Issue.UpdateWithOptions", resp, err)
 	}
-	level.Debug(r.logger).Log("msg", "issue summary updated", "key", issue.Key, "id", issue.ID)
+	log.Debug("msg", "issue summary updated", "key", issue.Key, "id", issue.ID)
 	return false, nil
 }
 
 func (r *Receiver) updateDescription(issueKey string, description string) (bool, error) {
-	level.Debug(r.logger).Log("msg", "updating issue with new description", "key", issueKey, "description", description)
+	log.Debug("msg", "updating issue with new description", "key", issueKey, "description", description)
 
 	issueUpdate := &jira.Issue{
 		Key: issueKey,
@@ -345,9 +343,9 @@ func (r *Receiver) updateDescription(issueKey string, description string) (bool,
 	}
 	issue, resp, err := r.client.UpdateWithOptions(issueUpdate, nil)
 	if err != nil {
-		return handleJiraErrResponse("Issue.UpdateWithOptions", resp, err, r.logger)
+		return handleJiraErrResponse("Issue.UpdateWithOptions", resp, err)
 	}
-	level.Debug(r.logger).Log("msg", "issue summary updated", "key", issue.Key, "id", issue.ID)
+	log.Debug("msg", "issue summary updated", "key", issue.Key, "id", issue.ID)
 	return false, nil
 }
 
@@ -356,22 +354,22 @@ func (r *Receiver) reopen(issueKey string) (bool, error) {
 }
 
 func (r *Receiver) create(issue *jira.Issue) (bool, error) {
-	level.Debug(r.logger).Log("msg", "create", "issue", fmt.Sprintf("%+v", *issue.Fields))
+	log.Debug("msg", "create", "issue", fmt.Sprintf("%+v", *issue.Fields))
 	newIssue, resp, err := r.client.Create(issue)
 	if err != nil {
-		return handleJiraErrResponse("Issue.Create", resp, err, r.logger)
+		return handleJiraErrResponse("Issue.Create", resp, err)
 	}
 	*issue = *newIssue
 
-	level.Info(r.logger).Log("msg", "issue created", "key", issue.Key, "id", issue.ID)
+	log.Info("msg", "issue created", "key", issue.Key, "id", issue.ID)
 	return false, nil
 }
 
-func handleJiraErrResponse(api string, resp *jira.Response, err error, logger log.Logger) (bool, error) {
+func handleJiraErrResponse(api string, resp *jira.Response, err error) (bool, error) {
 	if resp == nil || resp.Request == nil {
-		level.Debug(logger).Log("msg", "handleJiraErrResponse", "api", api, "err", err)
+		log.Debug("msg", "handleJiraErrResponse", "api", api, "err", err)
 	} else {
-		level.Debug(logger).Log("msg", "handleJiraErrResponse", "api", api, "err", err, "url", resp.Request.URL)
+		log.Debug("msg", "handleJiraErrResponse", "api", api, "err", err, "url", resp.Request.URL)
 	}
 
 	if resp != nil && resp.StatusCode/100 != 2 {
@@ -390,18 +388,18 @@ func (r *Receiver) resolveIssue(issueKey string) (bool, error) {
 func (r *Receiver) doTransition(issueKey string, transitionState string) (bool, error) {
 	transitions, resp, err := r.client.GetTransitions(issueKey)
 	if err != nil {
-		return handleJiraErrResponse("Issue.GetTransitions", resp, err, r.logger)
+		return handleJiraErrResponse("Issue.GetTransitions", resp, err)
 	}
 
 	for _, t := range transitions {
 		if t.Name == transitionState {
-			level.Debug(r.logger).Log("msg", fmt.Sprintf("transition %s", transitionState), "key", issueKey, "transitionID", t.ID)
+			log.Debug("msg", fmt.Sprintf("transition %s", transitionState), "key", issueKey, "transitionID", t.ID)
 			resp, err = r.client.DoTransition(issueKey, t.ID)
 			if err != nil {
-				return handleJiraErrResponse("Issue.DoTransition", resp, err, r.logger)
+				return handleJiraErrResponse("Issue.DoTransition", resp, err)
 			}
 
-			level.Debug(r.logger).Log("msg", transitionState, "key", issueKey)
+			log.Debug("msg", transitionState, "key", issueKey)
 			return false, nil
 		}
 	}

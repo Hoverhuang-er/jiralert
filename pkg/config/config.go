@@ -15,7 +15,9 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
+	log "github.com/sirupsen/logrus"
+	"github.com/trivago/tgo/tcontainer"
+	"gopkg.in/yaml.v2"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -23,12 +25,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
-
-	"github.com/trivago/tgo/tcontainer"
-	"gopkg.in/yaml.v2"
 )
 
 // Secret is a string that must not be revealed on marshaling.
@@ -59,14 +55,14 @@ func Load(s string) (*Config, error) {
 }
 
 // LoadFile parses the given YAML file into a Config.
-func LoadFile(filename string, logger log.Logger) (*Config, []byte, error) {
-	level.Info(logger).Log("msg", "loading configuration", "path", filename)
-	content, err := ioutil.ReadFile(filename)
+func LoadFile(filename string) (*Config, []byte, error) {
+	log.Info("msg", "loading configuration", "path", filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	content, err = substituteEnvVars(content, logger)
+	content, err = substituteEnvVars(content)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -76,13 +72,13 @@ func LoadFile(filename string, logger log.Logger) (*Config, []byte, error) {
 		return nil, nil, err
 	}
 
-	resolveFilepaths(filepath.Dir(filename), cfg, logger)
+	resolveFilepaths(filepath.Dir(filename), cfg)
 	return cfg, content, nil
 }
 
 // expand env variables $(var) from the config file
 // taken from https://github.dev/thanos-io/thanos/blob/296c4ab4baf2c8dd6abdf2649b0660ac77505e63/pkg/reloader/reloader.go#L445-L462 by https://github.com/fabxc
-func substituteEnvVars(b []byte, logger log.Logger) (r []byte, err error) {
+func substituteEnvVars(b []byte) (r []byte, err error) {
 	var envRe = regexp.MustCompile(`\$\(([a-zA-Z_0-9]+)\)`)
 	r = envRe.ReplaceAllFunc(b, func(n []byte) []byte {
 		if err != nil {
@@ -103,13 +99,13 @@ func substituteEnvVars(b []byte, logger log.Logger) (r []byte, err error) {
 
 // resolveFilepaths joins all relative paths in a configuration
 // with a given base directory.
-func resolveFilepaths(baseDir string, cfg *Config, logger log.Logger) {
+func resolveFilepaths(baseDir string, cfg *Config) {
 	join := func(fp string) string {
 		if len(fp) == 0 || filepath.IsAbs(fp) {
 			return fp
 		}
 		absFp := filepath.Join(baseDir, fp)
-		level.Debug(logger).Log("msg", "resolved relative configuration path", "relativePath", fp, "absolutePath", absFp)
+		log.Debug("msg", "resolved relative configuration path", "relativePath", fp, "absolutePath", absFp)
 		return absFp
 	}
 
