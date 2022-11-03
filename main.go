@@ -52,6 +52,9 @@ type Flg struct {
 func main() {
 	runtime.SetBlockProfileRate(1)
 	runtime.SetMutexProfileFraction(1)
+	ncu := runtime.NumCPU()
+	runtime.GOMAXPROCS(ncu)
+	debug.ReadBuildInfo()
 	debug.PrintStack()
 	fg := Flg{
 		Loglevel:      "info",
