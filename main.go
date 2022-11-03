@@ -90,19 +90,16 @@ func main() {
 			errorHandler(w, http.StatusBadRequest, fmt.Errorf("failed to read request body: %v", err))
 			return
 		}
-		log.Infof("request body:%s", string(body))
 		if err := json.Unmarshal(body, &data); err != nil {
 			errorHandler(w, http.StatusBadRequest, fmt.Errorf("failed to parse request body: %v", err))
 			return
 		}
-		log.Infof("request data:%v", data)
 		conf := config2.ReceiverByName(data.Receiver)
 		if conf == nil {
 			log.Errorf("config not found", conf)
 			errorHandler(w, http.StatusOK, fmt.Errorf("receiver missing: %s", data.Receiver))
 			return
 		}
-		log.Debugf("  matched receiver;%s", conf.Name)
 		// TODO: Consider reusing notifiers or just jira clients to reuse connections.
 		tp := jira.BasicAuthTransport{
 			Username: conf.User,
@@ -125,7 +122,9 @@ func main() {
 			return
 		}
 		requestTotal.WithLabelValues(conf.Name, "200").Inc()
-		wb, _ := jsoniter.MarshalToString(map[string]string{
+		wb, _ := jsoniter.MarshalToString(map[string]interface{}{
+			"code":      http.StatusOK,
+			"msg":       "success",
 			"issue_key": key,
 		})
 		w.Write([]byte(wb))
