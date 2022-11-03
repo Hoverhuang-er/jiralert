@@ -34,7 +34,6 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"runtime"
-	"runtime/debug"
 	"time"
 )
 
@@ -54,12 +53,8 @@ type Flg struct {
 }
 
 func main() {
-	runtime.SetBlockProfileRate(1)
-	runtime.SetMutexProfileFraction(1)
 	ncu := runtime.NumCPU()
 	runtime.GOMAXPROCS(ncu)
-	debug.ReadBuildInfo()
-	debug.PrintStack()
 	fg := Flg{
 		Loglevel:      "info",
 		Logfmt:        logFormatLogfmt,
@@ -135,6 +130,33 @@ func main() {
 		})
 		w.Write([]byte(wb))
 		w.WriteHeader(http.StatusOK)
+		return
+	})
+	http.HandleFunc("/alert/v2", func(writer http.ResponseWriter, request *http.Request) {
+		var data alertmanager.Data
+		ctx, cancel := context.WithTimeout(request.Context(), 30*time.Second)
+		defer func() {
+			_ = request.Body.Close()
+			cancel()
+		}()
+		if err := jsoniter.NewDecoder(request.Body).Decode(&data); err != nil {
+			log.Errorf("msg", "failed to parse request body: %v", err)
+			return
+		}
+		je := Jiralert{
+			Input:       &data,
+			Config:      nil,
+			Template:    nil,
+			IsHashLable: false,
+		}
+		resp, err := je.NewIssues(ctx)
+		if err != nil {
+			log.Errorf("msg", "failed to create jira issue: %v", err)
+			return
+		}
+		wb, _ := jsoniter.MarshalToString(resp)
+		writer.Write([]byte(wb))
+		writer.WriteHeader(http.StatusOK)
 		return
 	})
 	http.Handle("/logger", &handler{})
