@@ -17,11 +17,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Hoverhuang-er/go-actuator"
-	"net/http"
-	"os"
-	"runtime"
-	"strconv"
-
 	"github.com/Hoverhuang-er/jiralert/pkg/alertmanager"
 	"github.com/Hoverhuang-er/jiralert/pkg/config"
 	"github.com/Hoverhuang-er/jiralert/pkg/notify"
@@ -32,7 +27,11 @@ import (
 	atmpl "github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
+	"net/http"
 	_ "net/http/pprof"
+	"os"
+	"runtime"
+	"runtime/debug"
 )
 
 const (
@@ -53,6 +52,7 @@ type Flg struct {
 func main() {
 	runtime.SetBlockProfileRate(1)
 	runtime.SetMutexProfileFraction(1)
+	debug.PrintStack()
 	fg := Flg{
 		Loglevel:      "info",
 		Logfmt:        logFormatLogfmt,
@@ -74,7 +74,7 @@ func main() {
 	tmpl, err := template.LoadTemplate(config.Template)
 	if err != nil {
 		log.Error("msg", "error loading templates", "path", config.Template, "err", err)
-		os.Exit(1)
+		return
 	}
 	http.HandleFunc("/alert", func(w http.ResponseWriter, req *http.Request) {
 		log.Debug("msg", "handling /alert webhook request")
@@ -82,12 +82,14 @@ func main() {
 		// https://godoc.org/github.com/prometheus/alertmanager/template#Data
 		data := alertmanager.Data{}
 		if err := json.NewDecoder(req.Body).Decode(&data); err != nil {
-			errorHandler(w, http.StatusBadRequest, err, unknownReceiver, &data)
+			log.Errorf("decode json err%s", err.Error())
+			errorHandler(w, http.StatusOK, err)
 			return
 		}
 		conf := config.ReceiverByName(data.Receiver)
 		if conf == nil {
-			errorHandler(w, http.StatusNotFound, fmt.Errorf("receiver missing: %s", data.Receiver), unknownReceiver, &data)
+			log.Error("config not found")
+			errorHandler(w, http.StatusOK, fmt.Errorf("receiver missing: %s", data.Receiver))
 			return
 		}
 		log.Debug("msg", "  matched receiver", "receiver", conf.Name)
@@ -107,18 +109,17 @@ func main() {
 			client, err = jira.NewClient(tp.Client(), conf.APIURL)
 		}
 		if err != nil {
-			errorHandler(w, http.StatusInternalServerError, err, conf.Name, &data)
+			log.Errorf("Failed to create Jira client: %v", err)
+			errorHandler(w, http.StatusOK, err)
 			return
 		}
+		var status int
 		if retry, err := notify.NewReceiver(conf, tmpl, client.Issue).Notify(&data, fg.HashJiraLabel); err != nil {
-			var status int
 			if retry {
-				// Instruct Alertmanager to retry.
 				status = http.StatusServiceUnavailable
-			} else {
-				status = http.StatusInternalServerError
 			}
-			errorHandler(w, status, err, conf.Name, &data)
+			log.Errorf("send notify error:%s", err.Error())
+			errorHandler(w, status, err)
 			return
 		}
 		requestTotal.WithLabelValues(conf.Name, "200").Inc()
@@ -140,7 +141,7 @@ func main() {
 	}
 }
 
-func errorHandler(w http.ResponseWriter, status int, err error, receiver string, data *alertmanager.Data) {
+func errorHandler(w http.ResponseWriter, status int, err error) {
 	w.WriteHeader(status)
 	response := struct {
 		Error   bool
@@ -156,8 +157,7 @@ func errorHandler(w http.ResponseWriter, status int, err error, receiver string,
 	json := string(bytes[:])
 	fmt.Fprint(w, json)
 	log.Error("msg", "error handling request", "statusCode", status, "statusText", http.StatusText(status),
-		"err", err, "receiver", receiver, "groupLabels", data.GroupLabels)
-	requestTotal.WithLabelValues(receiver, strconv.FormatInt(int64(status), 10)).Inc()
+		"err", err)
 }
 
 func setupLogger(lvl string, fmt string) (logger klog.Logger) {
