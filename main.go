@@ -27,6 +27,7 @@ import (
 	atmpl "github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -71,46 +72,42 @@ func main() {
 	}
 	config, _, err := config.LoadFile(fg.Config)
 	if err != nil {
-		log.Errorf("msg", "error loading configuration path%s err%v", fg.Config, err)
+		log.Errorf("msg", "loading configuration path%s err%v", fg.Config, err)
 		os.Exit(1)
 	}
 	tmpl, err := template.LoadTemplate(config.Template)
 	if err != nil {
-		log.Error("msg", "error loading templates", "path", config.Template, "err", err)
+		log.Error("msg", "loading templates", "path", config.Template, "err", err)
 		return
 	}
 	http.HandleFunc("/alert", func(w http.ResponseWriter, req *http.Request) {
-		log.Debug("msg", "handling /alert webhook request")
 		defer func() { _ = req.Body.Close() }()
 		// https://godoc.org/github.com/prometheus/alertmanager/template#Data
 		data := alertmanager.Data{}
-		if err := json.NewDecoder(req.Body).Decode(&data); err != nil {
-			log.Errorf("decode json err%s", err.Error())
-			errorHandler(w, http.StatusOK, err)
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			errorHandler(w, http.StatusBadRequest, fmt.Errorf("failed to read request body: %v", err))
 			return
 		}
+		log.Infof("request body:%s", string(body))
+		if err := json.Unmarshal(body, &data); err != nil {
+			errorHandler(w, http.StatusBadRequest, fmt.Errorf("failed to parse request body: %v", err))
+			return
+		}
+		log.Infof("request data:%v", data)
 		conf := config.ReceiverByName(data.Receiver)
 		if conf == nil {
 			log.Error("config not found")
 			errorHandler(w, http.StatusOK, fmt.Errorf("receiver missing: %s", data.Receiver))
 			return
 		}
-		log.Debug("msg", "  matched receiver", "receiver", conf.Name)
+		log.Debugf("  matched receiver;%s", conf.Name)
 		// TODO: Consider reusing notifiers or just jira clients to reuse connections.
-		var client *jira.Client
-		var err error
-		if conf.User != "" && conf.Password != "" {
-			tp := jira.BasicAuthTransport{
-				Username: conf.User,
-				Password: string(conf.Password),
-			}
-			client, err = jira.NewClient(tp.Client(), conf.APIURL)
-		} else if conf.PersonalAccessToken != "" {
-			tp := jira.PATAuthTransport{
-				Token: string(conf.PersonalAccessToken),
-			}
-			client, err = jira.NewClient(tp.Client(), conf.APIURL)
+		tp := jira.BasicAuthTransport{
+			Username: conf.User,
+			Password: string(conf.Password),
 		}
+		client, err := jira.NewClient(tp.Client(), conf.APIURL)
 		if err != nil {
 			log.Errorf("Failed to create Jira client: %v", err)
 			errorHandler(w, http.StatusOK, err)

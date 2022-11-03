@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	docsURL   = "https://github.com/prometheus-community/jiralert#readme"
+	docsURL   = "https://raw.githubusercontent.com/Hoverhuang-er/jiralert/master/README.md"
 	templates = `
     {{ define "page" -}}
       <html>

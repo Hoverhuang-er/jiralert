@@ -7,7 +7,6 @@ require (
 	github.com/andygrunwald/go-jira v1.16.0
 	github.com/go-kit/kit v0.12.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus-community/jiralert v0.0.0-20220823152901-43a23d501c56
 	github.com/prometheus/alertmanager v0.24.0
 	github.com/prometheus/client_golang v1.13.0
 	github.com/sirupsen/logrus v1.9.0

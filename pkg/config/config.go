@@ -49,6 +49,7 @@ func Load(s string) (*Config, error) {
 	cfg := &Config{}
 	err := yaml.Unmarshal([]byte(s), cfg)
 	if err != nil {
+		log.Errorf("error parsing configuration file: %s", err)
 		return nil, err
 	}
 	return cfg, nil
@@ -56,19 +57,22 @@ func Load(s string) (*Config, error) {
 
 // LoadFile parses the given YAML file into a Config.
 func LoadFile(filename string) (*Config, []byte, error) {
-	log.Info("msg", "loading configuration", "path", filename)
+	log.Info("loading configuration", "path", filename)
 	content, err := os.ReadFile(filename)
 	if err != nil {
+		log.Errorf("error reading configuration file: %s", err)
 		return nil, nil, err
 	}
 
 	content, err = substituteEnvVars(content)
 	if err != nil {
+		log.Errorf("error substituting environment variables: %s", err)
 		return nil, nil, err
 	}
 
 	cfg, err := Load(string(content))
 	if err != nil {
+		log.Errorf("error parsing configuration file: %s", err)
 		return nil, nil, err
 	}
 

@@ -60,25 +60,29 @@ func NewReceiver(c *config.ReceiverConfig, t *template.Template, client jiraIssu
 func (r *Receiver) Notify(data *alertmanager.Data, hashJiraLabel bool) (bool, error) {
 	project, err := r.tmpl.Execute(r.conf.Project, data)
 	if err != nil {
+		log.Errorf("failed to execute project template", "err", err)
 		return false, errors.Wrap(err, "generate project from template")
 	}
-
+	log.Info("msg", "project", "project", project)
 	issueGroupLabel := toGroupTicketLabel(data.GroupLabels, hashJiraLabel)
-
+	log.Infof("msg", "processing webhook", "receiver", r.conf.Name, "project", project, "issue", issueGroupLabel)
 	issue, retry, err := r.findIssueToReuse(project, issueGroupLabel)
 	if err != nil {
+		log.Errorf("failed to find issue to reuse", "err", err)
 		return retry, err
 	}
-
+	log.Info("issue to reuse", "issue", issue)
 	// We want up to date title no matter what.
 	// This allows reflecting current group state if desired by user e.g {{ len $.Alerts.Firing() }}
 	issueSummary, err := r.tmpl.Execute(r.conf.Summary, data)
 	if err != nil {
+		log.Errorf("failed to execute summary template", "err", err)
 		return false, errors.Wrap(err, "generate summary from template")
 	}
-
+	log.Info("issue summary", "summary", issueSummary)
 	issueDesc, err := r.tmpl.Execute(r.conf.Description, data)
 	if err != nil {
+		log.Errorf("failed to execute description template", "err", err)
 		return false, errors.Wrap(err, "render issue description")
 	}
 
@@ -87,6 +91,7 @@ func (r *Receiver) Notify(data *alertmanager.Data, hashJiraLabel bool) (bool, er
 		if issue.Fields.Summary != issueSummary {
 			retry, err := r.updateSummary(issue.Key, issueSummary)
 			if err != nil {
+				log.Errorf("failed to update summary", "err", err)
 				return retry, err
 			}
 		}
@@ -94,6 +99,7 @@ func (r *Receiver) Notify(data *alertmanager.Data, hashJiraLabel bool) (bool, er
 		if issue.Fields.Description != issueDesc {
 			retry, err := r.updateDescription(issue.Key, issueDesc)
 			if err != nil {
+				log.Errorf("failed to update description", "err", err)
 				return retry, err
 			}
 		}
@@ -103,6 +109,7 @@ func (r *Receiver) Notify(data *alertmanager.Data, hashJiraLabel bool) (bool, er
 				log.Debug("msg", "no firing alert; resolving issue", "key", issue.Key, "label", issueGroupLabel)
 				retry, err := r.resolveIssue(issue.Key)
 				if err != nil {
+					log.Errorf("failed to resolve issue", "err", err)
 					return retry, err
 				}
 				return false, nil
