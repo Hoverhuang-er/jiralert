@@ -70,14 +70,14 @@ func main() {
 			"please read https://github.com/prometheus-community/jiralert/pull/79 "+
 			"and try -hash-jira-label")
 	}
-	config, _, err := config.LoadFile(fg.Config)
+	config2, _, err := config.LoadFile(fg.Config)
 	if err != nil {
 		log.Errorf("msg", "loading configuration path%s err%v", fg.Config, err)
 		os.Exit(1)
 	}
-	tmpl, err := template.LoadTemplate(config.Template)
+	tmpl, err := template.LoadTemplate(config2.Template)
 	if err != nil {
-		log.Error("msg", "loading templates", "path", config.Template, "err", err)
+		log.Error("msg", "loading templates", "path", config2.Template, "err", err)
 		return
 	}
 	http.HandleFunc("/alert", func(w http.ResponseWriter, req *http.Request) {
@@ -95,9 +95,9 @@ func main() {
 			return
 		}
 		log.Infof("request data:%v", data)
-		conf := config.ReceiverByName(data.Receiver)
+		conf := config2.ReceiverByName(data.Receiver)
 		if conf == nil {
-			log.Error("config not found")
+			log.Errorf("config not found", conf)
 			errorHandler(w, http.StatusOK, fmt.Errorf("receiver missing: %s", data.Receiver))
 			return
 		}
@@ -126,7 +126,7 @@ func main() {
 	})
 	http.Handle("/logger", &handler{})
 	http.HandleFunc("/", HomeHandlerFunc())
-	http.HandleFunc("/config", ConfigHandlerFunc(config))
+	http.HandleFunc("/config", ConfigHandlerFunc(config2))
 	http.HandleFunc("/healthz", Healthcheck)
 	http.HandleFunc("/actuator/*endpoint", Healthcheck)
 	http.Handle("/metrics", promhttp.Handler())

@@ -323,12 +323,17 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 // ReceiverByName loops the receiver list and returns the first instance with that name
 func (c *Config) ReceiverByName(name string) *ReceiverConfig {
-	for _, rc := range c.Receivers {
-		if rc.Name == name {
-			return rc
+	var rc *ReceiverConfig
+	for i, _ := range c.Receivers {
+		log.Info("Checking receiver", "name", c.Receivers[i].Name)
+		name := strings.ReplaceAll(c.Receivers[i].Name, `\`, ``)
+		log.Infof("Checking receiver %s", name)
+		if c.Receivers[i].Name == name {
+			rc = c.Receivers[i]
+			break
 		}
 	}
-	return nil
+	return rc
 }
 
 func checkOverflow(m map[string]interface{}, ctx string) error {
