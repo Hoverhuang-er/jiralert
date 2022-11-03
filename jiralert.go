@@ -11,9 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package jiralert
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/Hoverhuang-er/go-actuator"
@@ -22,16 +23,11 @@ import (
 	"github.com/Hoverhuang-er/jiralert/pkg/notify"
 	"github.com/Hoverhuang-er/jiralert/pkg/template"
 	"github.com/andygrunwald/go-jira"
-	klog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	jsoniter "github.com/json-iterator/go"
-	atmpl "github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"io"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"runtime"
 	"time"
@@ -159,7 +155,6 @@ func main() {
 		writer.WriteHeader(http.StatusOK)
 		return
 	})
-	http.Handle("/logger", &handler{})
 	http.HandleFunc("/", HomeHandlerFunc())
 	http.HandleFunc("/config", ConfigHandlerFunc(config2))
 	http.HandleFunc("/healthz", Healthcheck)
@@ -195,28 +190,6 @@ func errorHandler(w http.ResponseWriter, status int, err error) {
 		"err", err)
 }
 
-func setupLogger(lvl string, fmt string) (logger klog.Logger) {
-	var filter level.Option
-	switch lvl {
-	case "error":
-		filter = level.AllowError()
-	case "warn":
-		filter = level.AllowWarn()
-	case "debug":
-		filter = level.AllowDebug()
-	default:
-		filter = level.AllowInfo()
-	}
-	if fmt == logFormatJSON {
-		logger = klog.NewJSONLogger(klog.NewSyncWriter(os.Stderr))
-	} else {
-		logger = klog.NewLogfmtLogger(klog.NewSyncWriter(os.Stderr))
-	}
-	logger = level.NewFilter(logger, filter)
-	logger = klog.With(logger, "ts", klog.DefaultTimestampUTC, "caller", klog.DefaultCaller)
-	return
-}
-
 func Healthcheck(w http.ResponseWriter, r *http.Request) {
 	versionBody, _ := os.ReadFile("git_commit")
 	getactuator := actuator.GetActuatorHandler(&actuator.Config{
@@ -226,47 +199,5 @@ func Healthcheck(w http.ResponseWriter, r *http.Request) {
 		Version: fmt.Sprintf("%s", versionBody),
 	})
 	getactuator(w, r)
-	return
-}
-
-func logWith(values map[string]string, logger klog.Logger) klog.Logger {
-	for k, v := range values {
-		logger = klog.With(logger, k, v)
-	}
-	return logger
-}
-func logAlerts(alerts atmpl.Data, logger klog.Logger) error {
-	logger = logWith(alerts.CommonAnnotations, logger)
-	logger = logWith(alerts.CommonLabels, logger)
-	logger = logWith(alerts.GroupLabels, logger)
-	for _, alert := range alerts.Alerts {
-		alertLogger := logWith(alert.Labels, logger)
-		alertLogger = logWith(alert.Annotations, alertLogger)
-		if err := alertLogger.Log("status", alert.Status, "startsAt", alert.StartsAt, "endsAt", alert.EndsAt,
-			"generatorURL", alert.GeneratorURL, "externalURL", alerts.ExternalURL, "receiver", alerts.Receiver,
-			"fingerprint", alert.Fingerprint); err != nil {
-			return err
-		}
-		log.Infof("OUTPUT:%v", alertLogger)
-	}
-	return nil
-}
-
-type handler struct {
-	Logger klog.Logger
-}
-
-func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var alerts atmpl.Data
-	err := json.NewDecoder(r.Body).Decode(&alerts)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if err := logAlerts(alerts, h.Logger); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 	return
 }
