@@ -24,6 +24,7 @@ import (
 	"github.com/andygrunwald/go-jira"
 	klog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	jsoniter "github.com/json-iterator/go"
 	atmpl "github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
@@ -114,7 +115,8 @@ func main() {
 			return
 		}
 		var status int
-		if retry, err := notify.NewReceiver(conf, tmpl, client.Issue).Notify(&data, fg.HashJiraLabel); err != nil {
+		key, retry, err := notify.NewReceiver(conf, tmpl, client.Issue).Notify(&data, fg.HashJiraLabel)
+		if err != nil {
 			if retry {
 				status = http.StatusServiceUnavailable
 			}
@@ -123,6 +125,12 @@ func main() {
 			return
 		}
 		requestTotal.WithLabelValues(conf.Name, "200").Inc()
+		wb, _ := jsoniter.MarshalToString(map[string]string{
+			"issue_key": key,
+		})
+		w.Write([]byte(wb))
+		w.WriteHeader(http.StatusOK)
+		return
 	})
 	http.Handle("/logger", &handler{})
 	http.HandleFunc("/", HomeHandlerFunc())

@@ -3,11 +3,11 @@
 defaults:
   # API access fields.
   api_url: http://simple-labs.rest:8080
-  user: poc
+  user: 'poc'
   password: 'password'
 
   # The type of JIRA issue to create. Required.
-  issue_type: Bug
+  issue_type: Task
   # Issue priority. Optional.
   priority: Medium
   # Go template invocation for generating the summary. Required.
@@ -20,39 +20,31 @@ defaults:
   wont_fix_resolution: "Won't Fix"
   # Amount of time after being closed that an issue should be reopened, after which, a new issue is created.
   # Optional (default: always reopen)
-  reopen_duration: 0h
+  reopen_duration: 12h
 
 # Receiver definitions. At least one must be defined.
 receivers:
     # Must match the Alertmanager receiver name. Required.
-  - name: 'demo'
+  - name: 'bob.chang'
     # JIRA project to create the issue in. Required.
     project: 'DTPOC'
     # Overrides default.
     issue_type: Task
     # Copy all Prometheus labels into separate JIRA labels. Optional (default: false).
     add_group_labels: false
-
-  - name: 'jira-xy'
-    project: XY
-    # Overrides default.
-    issue_type: Task
-    # JIRA components. Optional.
-    components: ['Operations']
-    # Standard or custom field values to set on created issue. Optional.
-    #
-    # See https://developer.atlassian.com/server/jira/platform/jira-rest-api-examples/#setting-custom-field-data-for-other-field-types for further examples.
-    fields:
-      # TextField
-      customfield_10001: "Random text"
-      # SelectList
-      customfield_10002: {"value": "red"}
-      # MultiSelect
-      customfield_10003: [{"value": "red"}, {"value": "blue"}, {"value": "green"}]
-    #
-    # Automatically resolve jira issues when alert is resolved. Optional. If declared, ensure state is not an empty string.
     auto_resolve:
       state: 'Done'
+#    components: [ 'Operations' ]
+#    # Standard or custom field values to set on created issue. Optional.
+#    #
+#    # See https://developer.atlassian.com/server/jira/platform/jira-rest-api-examples/#setting-custom-field-data-for-other-field-types for further examples.
+#    fields:
+#      # TextField
+#      customfield_10001: "Random text"
+#      # SelectList
+#      customfield_10002: { "value": "red" }
+#      # MultiSelect
+#      customfield_10003: [ { "value": "red" }, { "value": "blue" }, { "value": "green" } ]
 
 # File containing template definitions. Required.
 template: jiralert.tmpl
