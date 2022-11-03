@@ -28,12 +28,14 @@ import (
 	atmpl "github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/context"
 	"io"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"runtime"
 	"runtime/debug"
+	"time"
 )
 
 const (
@@ -82,7 +84,11 @@ func main() {
 		return
 	}
 	http.HandleFunc("/alert", func(w http.ResponseWriter, req *http.Request) {
-		defer func() { _ = req.Body.Close() }()
+		ctx, cancel := context.WithTimeout(req.Context(), 30*time.Second)
+		defer func() {
+			_ = req.Body.Close()
+			cancel()
+		}()
 		// https://godoc.org/github.com/prometheus/alertmanager/template#Data
 		data := alertmanager.Data{}
 		body, err := io.ReadAll(req.Body)
@@ -94,7 +100,7 @@ func main() {
 			errorHandler(w, http.StatusBadRequest, fmt.Errorf("failed to parse request body: %v", err))
 			return
 		}
-		conf := config2.ReceiverByName(data.Receiver)
+		conf := config2.ReceiverByName(ctx, data.Receiver)
 		if conf == nil {
 			log.Errorf("config not found", conf)
 			errorHandler(w, http.StatusOK, fmt.Errorf("receiver missing: %s", data.Receiver))
@@ -112,7 +118,7 @@ func main() {
 			return
 		}
 		var status int
-		key, retry, err := notify.NewReceiver(conf, tmpl, client.Issue).Notify(&data, fg.HashJiraLabel)
+		key, retry, err := notify.NewReceiver(conf, tmpl, client.Issue).Notify(ctx, &data, fg.HashJiraLabel)
 		if err != nil {
 			if retry {
 				status = http.StatusServiceUnavailable

@@ -14,6 +14,7 @@ package notify
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha512"
 	"fmt"
 	"io/ioutil"
@@ -57,16 +58,16 @@ func NewReceiver(c *config.ReceiverConfig, t *template.Template, client jiraIssu
 }
 
 // Notify manages JIRA issues based on alertmanager webhook notify message.
-func (r *Receiver) Notify(data *alertmanager.Data, hashJiraLabel bool) (string, bool, error) {
+func (r *Receiver) Notify(ctx context.Context, data *alertmanager.Data, hashJiraLabel bool) (string, bool, error) {
 	project, err := r.tmpl.Execute(r.conf.Project, data)
 	if err != nil {
 		log.Errorf("failed to execute project template", "err", err)
 		return "", false, errors.Wrap(err, "generate project from template")
 	}
 	log.Info("msg", "project", "project", project)
-	issueGroupLabel := toGroupTicketLabel(data.GroupLabels, hashJiraLabel)
+	issueGroupLabel := toGroupTicketLabel(ctx, data.GroupLabels, hashJiraLabel)
 	log.Infof("msg", "processing webhook", "receiver", r.conf.Name, "project", project, "issue", issueGroupLabel)
-	issue, retry, err := r.findIssueToReuse(project, issueGroupLabel)
+	issue, retry, err := r.findIssueToReuse(ctx, project, issueGroupLabel)
 	if err != nil {
 		log.Errorf("failed to find issue to reuse", "err", err)
 		return "", retry, err
@@ -186,7 +187,7 @@ func (r *Receiver) Notify(data *alertmanager.Data, hashJiraLabel bool) (string, 
 	}
 	log.Info("r.conf.AddGroupLabels == true ")
 	for key, value := range r.conf.Fields {
-		issue.Fields.Unknowns[key], err = deepCopyWithTemplate(value, r.tmpl, data)
+		issue.Fields.Unknowns[key], err = deepCopyWithTemplate(ctx, value, r.tmpl, data)
 		if err != nil {
 			return "", false, err
 		}
@@ -198,7 +199,7 @@ func (r *Receiver) Notify(data *alertmanager.Data, hashJiraLabel bool) (string, 
 // deepCopyWithTemplate returns a deep copy of a map/slice/array/string/int/bool or combination thereof, executing the
 // provided template (with the provided data) on all string keys or values. All maps are connverted to
 // map[string]interface{}, with all non-string keys discarded.
-func deepCopyWithTemplate(value interface{}, tmpl *template.Template, data interface{}) (interface{}, error) {
+func deepCopyWithTemplate(ctx context.Context, value interface{}, tmpl *template.Template, data interface{}) (interface{}, error) {
 	if value == nil {
 		return value, nil
 	}
@@ -214,7 +215,7 @@ func deepCopyWithTemplate(value interface{}, tmpl *template.Template, data inter
 		converted := make([]interface{}, arrayLen)
 		for i := 0; i < arrayLen; i++ {
 			var err error
-			converted[i], err = deepCopyWithTemplate(valueMeta.Index(i).Interface(), tmpl, data)
+			converted[i], err = deepCopyWithTemplate(ctx, valueMeta.Index(i).Interface(), tmpl, data)
 			if err != nil {
 				return nil, err
 			}
@@ -235,7 +236,7 @@ func deepCopyWithTemplate(value interface{}, tmpl *template.Template, data inter
 			if err != nil {
 				return nil, err
 			}
-			converted[strKey], err = deepCopyWithTemplate(valueMeta.MapIndex(keyMeta).Interface(), tmpl, data)
+			converted[strKey], err = deepCopyWithTemplate(ctx, valueMeta.MapIndex(keyMeta).Interface(), tmpl, data)
 			if err != nil {
 				return nil, err
 			}
@@ -253,7 +254,7 @@ func deepCopyWithTemplate(value interface{}, tmpl *template.Template, data inter
 // hashing ensures that JIRA validation still accepts the output even
 // if the combined length of all groupLabel key-value pairs would be
 // longer than 255 chars
-func toGroupTicketLabel(groupLabels alertmanager.KV, hashJiraLabel bool) string {
+func toGroupTicketLabel(ctx context.Context, groupLabels alertmanager.KV, hashJiraLabel bool) string {
 	// new opt in behavior
 	if hashJiraLabel {
 		hash := sha512.New()
@@ -275,7 +276,7 @@ func toGroupTicketLabel(groupLabels alertmanager.KV, hashJiraLabel bool) string 
 	return strings.Replace(buf.String(), " ", "", -1)
 }
 
-func (r *Receiver) search(project, issueLabel string) (*jira.Issue, bool, error) {
+func (r *Receiver) search(ctx context.Context, project, issueLabel string) (*jira.Issue, bool, error) {
 	query := fmt.Sprintf("project=\"%s\" and labels=%q order by resolutiondate desc", project, issueLabel)
 	options := &jira.SearchOptions{
 		Fields:     []string{"summary", "status", "resolution", "resolutiondate"},
@@ -303,8 +304,8 @@ func (r *Receiver) search(project, issueLabel string) (*jira.Issue, bool, error)
 	return &issue, false, nil
 }
 
-func (r *Receiver) findIssueToReuse(project string, issueGroupLabel string) (*jira.Issue, bool, error) {
-	issue, retry, err := r.search(project, issueGroupLabel)
+func (r *Receiver) findIssueToReuse(ctx context.Context, project string, issueGroupLabel string) (*jira.Issue, bool, error) {
+	issue, retry, err := r.search(ctx, project, issueGroupLabel)
 	if err != nil {
 		return nil, retry, err
 	}

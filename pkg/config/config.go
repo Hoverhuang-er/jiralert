@@ -14,6 +14,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/trivago/tgo/tcontainer"
@@ -322,11 +323,12 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // ReceiverByName loops the receiver list and returns the first instance with that name
-func (c *Config) ReceiverByName(name string) *ReceiverConfig {
+func (c *Config) ReceiverByName(ctx context.Context, name string) *ReceiverConfig {
 	var rc *ReceiverConfig
 	for i, _ := range c.Receivers {
 		log.Info("Checking receiver", "name", c.Receivers[i].Name)
-		name := strings.ReplaceAll(c.Receivers[i].Name, `\`, ``)
+		// TODO: This is a bit of a hack, but it works for now.
+		name := strings.ReplaceAll(name, `\`, ``)
 		log.Infof("Checking receiver %s", name)
 		if c.Receivers[i].Name == name {
 			rc = c.Receivers[i]
