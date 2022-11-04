@@ -148,8 +148,8 @@ func main() {
 		}
 		je := jiralert.Jiralert{
 			Input:       &data,
-			Config:      nil,
-			Template:    nil,
+			Config:      config2,
+			Template:    tmpl,
 			IsHashLable: false,
 		}
 		resp, err := je.NewIssues(ctx)

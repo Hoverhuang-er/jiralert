@@ -122,7 +122,7 @@ type AutoResolve struct {
 // ReceiverConfig is the configuration for one receiver. It has a unique name and includes API access fields (url and
 // auth) and issue fields (required -- e.g. project, issue type -- and optional -- e.g. priority).
 type ReceiverConfig struct {
-	Name string `yaml:"name" json:"name,omitempty"`
+	Name string `yaml:"name" json:"name"`
 
 	// API access fields
 	APIURL              string `yaml:"api_url,omitempty" json:"apiurl,omitempty"`
