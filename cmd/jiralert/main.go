@@ -80,7 +80,7 @@ func main() {
 	srv := server.New(http.DefaultServeMux, &server.Options{
 		RequestLogger: requestlog.NewNCSALogger(os.Stdout, func(error) {}),
 	})
-	http.HandleFunc("/alert", func(w http.ResponseWriter, req *http.Request) {
+	http.HandleFunc("/alert/deprecated", func(w http.ResponseWriter, req *http.Request) {
 		ctx, cancel := context.WithTimeout(req.Context(), 30*time.Second)
 		defer func() {
 			_ = req.Body.Close()
@@ -134,7 +134,7 @@ func main() {
 		config.RequestTotal.WithLabelValues(conf.Name, "200").Inc()
 		return
 	})
-	http.HandleFunc("/alert/v2", func(writer http.ResponseWriter, request *http.Request) {
+	http.HandleFunc("/alert", func(writer http.ResponseWriter, request *http.Request) {
 		var data alertmanager.Data
 		ctx, cancel := context.WithTimeout(request.Context(), 30*time.Second)
 		defer func() {
