@@ -43,7 +43,8 @@ type JiralertFunc interface {
 
 // New Issues a new Jiralert.
 func (je Jiralert) NewIssues(ctx context.Context) (string, error) {
-	conf := CheckConfig(ctx, je.Config)
+	//conf := CheckConfig(ctx, je.Config)
+	conf := je.Config
 	if err := checkTemplate(ctx); err != nil {
 		config.RequestError.WithLabelValues("template", "500").Inc()
 		return "", errors.Wrap(err, "failed to check template")
@@ -95,17 +96,13 @@ func CheckConfig(ctx context.Context, je *config.Config) *config.Config {
 		AddGroupLabels:    false,
 	}
 	switch {
+	case je.Receivers[0].Name == "":
+		je.Receivers[0].Name = dfc.Name
+		log.Errorf("Name is empty, use default value: %v", dfc.Name)
+		return je
 	case je.Receivers[0].APIURL == "":
 		je.Receivers[0].APIURL = dfc.APIURL
 		log.Errorf("APIURL is empty, use default value: %v", dfc.APIURL)
-		return je
-	case je.Receivers[0].User == "":
-		je.Receivers[0].User = dfc.User
-		log.Warningf("User is empty, use default value: %v", dfc.User)
-		return je
-	case je.Receivers[0].Password == "":
-		je.Receivers[0].Password = dfc.Password
-		log.Warningf("Password is empty, use default value: %v", dfc.Password)
 		return je
 	case je.Receivers[0].Project == "":
 		je.Receivers[0].Project = dfc.Project

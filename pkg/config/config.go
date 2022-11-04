@@ -46,18 +46,18 @@ func (s *Secret) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // Load parses the YAML input into a Config.
-func Load(s string) (*Config, error) {
+func Load(s []byte) (*Config, error) {
 	cfg := &Config{}
-	err := yaml.Unmarshal([]byte(s), cfg)
+	err := yaml.Unmarshal(s, cfg)
 	if err != nil {
-		log.Errorf("error parsing configuration file: %s", err)
 		return nil, err
 	}
 	return cfg, nil
 }
 
-// LoadFile parses the given YAML file into a Config.
+// parses the given YAML file into a Config.
 func LoadFile(filename string) (*Config, []byte, error) {
+	var cfg2 Config
 	log.Info("loading configuration", "path", filename)
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -65,20 +65,17 @@ func LoadFile(filename string) (*Config, []byte, error) {
 		return nil, nil, err
 	}
 
-	content, err = substituteEnvVars(content)
+	content2, err := substituteEnvVars(content)
 	if err != nil {
 		log.Errorf("error substituting environment variables: %s", err)
 		return nil, nil, err
 	}
-
-	cfg, err := Load(string(content))
-	if err != nil {
+	if err := yaml.Unmarshal(content, &cfg2); err != nil {
 		log.Errorf("error parsing configuration file: %s", err)
 		return nil, nil, err
 	}
-
-	resolveFilepaths(filepath.Dir(filename), cfg)
-	return cfg, content, nil
+	resolveFilepaths(filepath.Dir(filename), &cfg2)
+	return &cfg2, content2, nil
 }
 
 // expand env variables $(var) from the config file
@@ -119,42 +116,43 @@ func resolveFilepaths(baseDir string, cfg *Config) {
 
 // AutoResolve is the struct used for defining jira resolution state when alert is resolved.
 type AutoResolve struct {
-	State string `yaml:"state" json:"state"`
+	State string `yaml:"state"`
 }
 
 // ReceiverConfig is the configuration for one receiver. It has a unique name and includes API access fields (url and
 // auth) and issue fields (required -- e.g. project, issue type -- and optional -- e.g. priority).
 type ReceiverConfig struct {
-	Name string `yaml:"name" json:"name"`
+	Name string `yaml:"name" json:"name,omitempty"`
 
 	// API access fields
-	APIURL              string `yaml,json:"api_url"`
-	User                string `yaml,json:"user"`
-	Password            Secret `yaml,json:"password"`
-	PersonalAccessToken Secret `yaml,json:"personal_access_token"`
+	APIURL              string `yaml:"api_url,omitempty" json:"apiurl,omitempty"`
+	User                string `yaml:"user,omitempty" json:"user,omitempty"`
+	Password            Secret `yaml:"password,omitempty" json:"password,omitempty"`
+	PersonalAccessToken Secret `yaml:"personal_access_token" json:"personal_access_token,omitempty"`
 
 	// Required issue fields
-	Project        string    `yaml,json:"project"`
-	IssueType      string    `yaml,json:"issue_type"`
-	Summary        string    `yaml,json:"summary"`
-	ReopenState    string    `yaml,json:"reopen_state"`
-	ReopenDuration *Duration `yaml,json:"reopen_duration"`
+	Project        string    `yaml:"project,omitempty" json:"project,omitempty"`
+	IssueType      string    `yaml:"issue_type,omitempty" json:"issue_type,omitempty"`
+	Summary        string    `yaml:"summary,omitempty" json:"summary,omitempty"`
+	ReopenState    string    `yaml:"reopen_state,omitempty" json:"reopen_state,omitempty"`
+	ReopenDuration *Duration `yaml:"reopen_duration,omitempty" json:"reopen_duration,omitempty"`
 
 	// Optional issue fields
-	Priority          string                 `yaml:"priority" json:"priority"`
-	Description       string                 `yaml:"description" json:"description"`
-	WontFixResolution string                 `yaml:"wont_fix_resolution" json:"wont_fix_resolution"`
-	Fields            map[string]interface{} `yaml:"fields" json:"fields"`
-	Components        []string               `yaml:"components" json:"components"`
+	Priority          string `yaml:"priority,omitempty" json:"priority,omitempty"`
+	Description       string `yaml:"description" json:"description,omitempty"`
+	WontFixResolution string `yaml:"wont_fix_resolution,omitempty" json:"wont_fix_resolution,omitempty"`
+
+	Fields     map[string]interface{} `yaml:"fields" json:"fields,omitempty"`
+	Components []string               `yaml:"components" json:"components,omitempty"`
 
 	// Label copy settings
-	AddGroupLabels bool `yaml:"add_group_labels" json:"add_group_labels"`
+	AddGroupLabels bool `yaml:"add_group_labels" json:"add_group_labels" json:"add_group_labels,omitempty"`
 
 	// Flag to auto-resolve opened issue when the alert is resolved.
-	AutoResolve *AutoResolve `yaml:"auto_resolve" json:"auto_resolve"`
+	AutoResolve *AutoResolve `yaml:"auto_resolve" json:"auto_resolve" json:"auto_resolve,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
-	XXX map[string]interface{} `yaml:",inline" json:"-"`
+	XXX map[string]interface{} `yaml:",inline" json:"-" json:"xxx,omitempty"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -175,9 +173,9 @@ func (rc *ReceiverConfig) UnmarshalYAML(unmarshal func(interface{}) error) error
 
 // Config is the top-level configuration for JIRAlert's config file.
 type Config struct {
-	Defaults  *ReceiverConfig   `yaml:"defaults,omitempty" json:"defaults,omitempty"`
-	Receivers []*ReceiverConfig `yaml:"receivers,omitempty" json:"receivers,omitempty"`
-	Template  string            `yaml:"template" json:"template"`
+	Defaults  *ReceiverConfig   `yaml:"defaults,omitempty"`
+	Receivers []*ReceiverConfig `yaml:"receivers,omitempty"`
+	Template  string            `yaml:"template"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline" json:"-"`

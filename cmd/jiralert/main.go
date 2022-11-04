@@ -72,6 +72,7 @@ func main() {
 		log.Errorf("msg", "loading configuration path%s err%v", fg.Config, err)
 		os.Exit(1)
 	}
+
 	tmpl, err := template.LoadTemplate(config2.Template)
 	if err != nil {
 		log.Error("msg", "loading templates", "path", config2.Template, "err", err)
