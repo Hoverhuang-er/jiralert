@@ -11,13 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package jiralert
+package main
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/Hoverhuang-er/go-actuator"
+	"github.com/Hoverhuang-er/jiralert"
 	"github.com/Hoverhuang-er/jiralert/pkg/alertmanager"
 	"github.com/Hoverhuang-er/jiralert/pkg/config"
 	"github.com/Hoverhuang-er/jiralert/pkg/notify"
@@ -26,6 +27,8 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
+	"gocloud.dev/server"
+	"gocloud.dev/server/requestlog"
 	"io"
 	"net/http"
 	"os"
@@ -74,6 +77,9 @@ func main() {
 		log.Error("msg", "loading templates", "path", config2.Template, "err", err)
 		return
 	}
+	srv := server.New(http.DefaultServeMux, &server.Options{
+		RequestLogger: requestlog.NewNCSALogger(os.Stdout, func(error) {}),
+	})
 	http.HandleFunc("/alert", func(w http.ResponseWriter, req *http.Request) {
 		ctx, cancel := context.WithTimeout(req.Context(), 30*time.Second)
 		defer func() {
@@ -118,7 +124,6 @@ func main() {
 			errorHandler(w, status, err)
 			return
 		}
-		requestTotal.WithLabelValues(conf.Name, "200").Inc()
 		wb, _ := jsoniter.MarshalToString(map[string]interface{}{
 			"code":      http.StatusOK,
 			"msg":       "success",
@@ -139,7 +144,7 @@ func main() {
 			log.Errorf("msg", "failed to parse request body: %v", err)
 			return
 		}
-		je := Jiralert{
+		je := jiralert.Jiralert{
 			Input:       &data,
 			Config:      nil,
 			Template:    nil,
@@ -155,8 +160,8 @@ func main() {
 		writer.WriteHeader(http.StatusOK)
 		return
 	})
-	http.HandleFunc("/", HomeHandlerFunc())
-	http.HandleFunc("/config", ConfigHandlerFunc(config2))
+	http.HandleFunc("/", jiralert.HomeHandlerFunc())
+	http.HandleFunc("/config", jiralert.ConfigHandlerFunc(config2))
 	http.HandleFunc("/healthz", Healthcheck)
 	http.HandleFunc("/actuator/*endpoint", Healthcheck)
 	http.Handle("/metrics", promhttp.Handler())
@@ -164,9 +169,8 @@ func main() {
 		fg.ListenAddr = ":8080"
 	}
 	log.Warn("listening", "address", fg.ListenAddr)
-	err = http.ListenAndServe(fg.ListenAddr, nil)
-	if err != nil {
-		log.Error("msg", "failed to start HTTP server", "address", fg.ListenAddr)
+	if srv.ListenAndServe(fg.ListenAddr) != http.ErrServerClosed {
+		log.Fatal("msg", "server exited abnormally")
 		os.Exit(1)
 	}
 }
@@ -200,4 +204,8 @@ func Healthcheck(w http.ResponseWriter, r *http.Request) {
 	})
 	getactuator(w, r)
 	return
+}
+
+func HealthCheckFunc() error {
+	return nil
 }
