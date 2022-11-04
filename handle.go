@@ -9,6 +9,7 @@ import (
 	"github.com/andygrunwald/go-jira"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"os"
@@ -43,9 +44,11 @@ type JiralertFunc interface {
 func (je Jiralert) NewIssues(ctx context.Context) (string, error) {
 	conf, err := CheckConfig(ctx, je.Config)
 	if err != nil {
+		config.RequestError.WithLabelValues("config", "500").Inc()
 		return "", errors.Wrap(err, "check config failed")
 	}
 	if err := checkTemplate(ctx); err != nil {
+		config.RequestError.WithLabelValues("template", "500").Inc()
 		return "", errors.Wrap(err, "failed to check template")
 	}
 	conf2 := conf.ReceiverByName(ctx, conf.Receivers[0].Name)
@@ -55,15 +58,19 @@ func (je Jiralert) NewIssues(ctx context.Context) (string, error) {
 	}
 	client, err := jira.NewClient(tp.Client(), conf2.APIURL)
 	if err != nil {
+		config.RequestError.WithLabelValues("newclient", "500").Inc()
 		return "", err
 	}
 	key, retry, err := notify.NewReceiver(conf2, je.Template, client.Issue).Notify(ctx, je.Input, je.IsHashLable)
 	if err != nil {
 		if retry {
+			config.RequestError.WithLabelValues("retry-create", "500").Inc()
 			return "", errors.New("retry")
 		}
+		config.RequestError.WithLabelValues("create", "500").Inc()
 		return "", err
 	}
+	config.RequestError.WithLabelValues("create", "200").Inc()
 	return jsoniter.MarshalToString(map[string]interface{}{
 		"code":      http.StatusOK,
 		"msg":       "success",
@@ -104,6 +111,7 @@ func checkTemplate(ctx context.Context) error {
 	if err != nil {
 		ft, err := os.OpenFile("jiralert.tmpl", os.O_RDWR|os.O_CREATE, 0755)
 		if os.IsNotExist(err) {
+			config.RequestError.With(prometheus.Labels{"type": "template", "status": "IsNotExist"}).Inc()
 			ft.WriteString(defaultTemplate)
 			ft.Close()
 			log.Info("create template file jiralert.tmpl")

@@ -11,20 +11,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package jiralert
+package config
 
 import "github.com/prometheus/client_golang/prometheus"
 
 var (
-	requestTotal = prometheus.NewCounterVec(
+	RequestTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "jiralert_requests_total",
 			Help: "Requests processed, by receiver and status code.",
 		},
 		[]string{"receiver", "code"},
 	)
+	RequestError = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "jiralert_requests_error",
+			Help: "Requests processed, by receiver response error.",
+		},
+		[]string{"type", "code"})
 )
 
 func init() {
-	prometheus.MustRegister(requestTotal)
+	prometheus.MustRegister(RequestTotal)
+	prometheus.MustRegister(RequestError)
 }

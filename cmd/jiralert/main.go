@@ -131,6 +131,7 @@ func main() {
 		})
 		w.Write([]byte(wb))
 		w.WriteHeader(http.StatusOK)
+		config.RequestTotal.WithLabelValues(conf.Name, "200").Inc()
 		return
 	})
 	http.HandleFunc("/alert/v2", func(writer http.ResponseWriter, request *http.Request) {
