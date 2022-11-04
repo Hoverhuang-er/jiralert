@@ -1,4 +1,4 @@
-name: Build amway-web
+name: Build Prometheus Jiralert Docker image
 
 on:
   push:
