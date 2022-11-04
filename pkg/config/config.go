@@ -128,17 +128,17 @@ type ReceiverConfig struct {
 	Name string `yaml:"name" json:"name"`
 
 	// API access fields
-	APIURL              string `yaml:"api_url" json:"api_url"`
-	User                string `yaml:"user" json:"user"`
-	Password            Secret `yaml:"password" json:"password"`
-	PersonalAccessToken Secret `yaml:"personal_access_token" json:"personal_access_token"`
+	APIURL              string `yaml,json:"api_url"`
+	User                string `yaml,json:"user"`
+	Password            Secret `yaml,json:"password"`
+	PersonalAccessToken Secret `yaml,json:"personal_access_token"`
 
 	// Required issue fields
-	Project        string    `yaml:"project" json:"project"`
-	IssueType      string    `yaml:"issue_type" json:"issue_type"`
-	Summary        string    `yaml:"summary" json:"summary"`
-	ReopenState    string    `yaml:"reopen_state" json:"reopen_state"`
-	ReopenDuration *Duration `yaml:"reopen_duration" json:"reopen_duration"`
+	Project        string    `yaml,json:"project"`
+	IssueType      string    `yaml,json:"issue_type"`
+	Summary        string    `yaml,json:"summary"`
+	ReopenState    string    `yaml,json:"reopen_state"`
+	ReopenDuration *Duration `yaml,json:"reopen_duration"`
 
 	// Optional issue fields
 	Priority          string                 `yaml:"priority" json:"priority"`

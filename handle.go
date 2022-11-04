@@ -43,11 +43,7 @@ type JiralertFunc interface {
 
 // New Issues a new Jiralert.
 func (je Jiralert) NewIssues(ctx context.Context) (string, error) {
-	conf, err := CheckConfig(ctx, je.Config)
-	if err != nil {
-		config.RequestError.WithLabelValues("config", "500").Inc()
-		return "", errors.Wrap(err, "check config failed")
-	}
+	conf := CheckConfig(ctx, je.Config)
 	if err := checkTemplate(ctx); err != nil {
 		config.RequestError.WithLabelValues("template", "500").Inc()
 		return "", errors.Wrap(err, "failed to check template")
@@ -85,10 +81,10 @@ func (je Jiralert) NewIssues(ctx context.Context) (string, error) {
 }
 
 // Verify Config if not exist
-func CheckConfig(ctx context.Context, je *config.Config) (*config.Config, error) {
+func CheckConfig(ctx context.Context, je *config.Config) *config.Config {
 	dfc := &config.ReceiverConfig{
 		Name:              "test",
-		APIURL:            "http://simple-labs.rest:8080",
+		APIURL:            "https://localhost:8080",
 		User:              "admin",
 		Password:          "admin",
 		Project:           "SRE",
@@ -98,17 +94,31 @@ func CheckConfig(ctx context.Context, je *config.Config) (*config.Config, error)
 		WontFixResolution: "Won't Fix",
 		AddGroupLabels:    false,
 	}
-	if je != nil {
+	switch {
+	case je.Receivers[0].APIURL == "":
+		je.Receivers[0].APIURL = dfc.APIURL
+		log.Errorf("APIURL is empty, use default value: %v", dfc.APIURL)
+		return je
+	case je.Receivers[0].User == "":
+		je.Receivers[0].User = dfc.User
+		log.Errorf("User is empty, use default value: %v", dfc.User)
+		return je
+	case je.Receivers[0].Password == "":
+		je.Receivers[0].Password = dfc.Password
+		log.Errorf("Password is empty, use default value: %v", dfc.Password)
+		return je
+	case je.Receivers[0].Project == "":
+		je.Receivers[0].Project = dfc.Project
+		log.Errorf("Project is empty, use default value: %v", dfc.Project)
+		return je
+	case je.Receivers[0].IssueType == "":
+		je.Receivers[0].IssueType = dfc.IssueType
+		log.Errorf("IssueType is empty, use default value: %v", dfc.IssueType)
+		return je
+	default:
 		log.Info("config is exist")
-		return je, nil
+		return je
 	}
-	return &config.Config{
-		Defaults: dfc,
-		Receivers: []*config.ReceiverConfig{
-			dfc,
-		},
-		Template: "jiralert.tmpl",
-	}, nil
 }
 
 // Verify Template if not exist
