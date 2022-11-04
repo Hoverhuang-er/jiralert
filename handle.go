@@ -2,6 +2,7 @@ package jiralert
 
 import (
 	"context"
+	"crypto/tls"
 	"github.com/Hoverhuang-er/jiralert/pkg/alertmanager"
 	"github.com/Hoverhuang-er/jiralert/pkg/config"
 	"github.com/Hoverhuang-er/jiralert/pkg/notify"
@@ -55,6 +56,11 @@ func (je Jiralert) NewIssues(ctx context.Context) (string, error) {
 	tp := jira.BasicAuthTransport{
 		Username: conf2.User,
 		Password: string(conf2.Password),
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
 	}
 	client, err := jira.NewClient(tp.Client(), conf2.APIURL)
 	if err != nil {
