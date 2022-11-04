@@ -101,19 +101,23 @@ func CheckConfig(ctx context.Context, je *config.Config) *config.Config {
 		return je
 	case je.Receivers[0].User == "":
 		je.Receivers[0].User = dfc.User
-		log.Errorf("User is empty, use default value: %v", dfc.User)
+		log.Warningf("User is empty, use default value: %v", dfc.User)
 		return je
 	case je.Receivers[0].Password == "":
 		je.Receivers[0].Password = dfc.Password
-		log.Errorf("Password is empty, use default value: %v", dfc.Password)
+		log.Warningf("Password is empty, use default value: %v", dfc.Password)
 		return je
 	case je.Receivers[0].Project == "":
 		je.Receivers[0].Project = dfc.Project
-		log.Errorf("Project is empty, use default value: %v", dfc.Project)
+		log.Warningf("Project is empty, use default value: %v", dfc.Project)
 		return je
 	case je.Receivers[0].IssueType == "":
 		je.Receivers[0].IssueType = dfc.IssueType
-		log.Errorf("IssueType is empty, use default value: %v", dfc.IssueType)
+		log.Warningf("IssueType is empty, use default value: %v", dfc.IssueType)
+		return je
+	case je.Receivers[0].Priority == "":
+		je.Receivers[0].Priority = dfc.Priority
+		log.Warningf("Priority is empty, use default value: %v", dfc.Priority)
 		return je
 	default:
 		log.Info("config is exist")
