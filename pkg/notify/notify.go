@@ -64,15 +64,12 @@ func (r *Receiver) Notify(ctx context.Context, data *alertmanager.Data, hashJira
 		log.Errorf("failed to execute project template", "err", err)
 		return "", false, errors.Wrap(err, "generate project from template")
 	}
-	log.Info("msg", "project", "project", project)
 	issueGroupLabel := toGroupTicketLabel(ctx, data.GroupLabels, hashJiraLabel)
-	log.Infof("msg", "processing webhook", "receiver", r.conf.Name, "project", project, "issue", issueGroupLabel)
 	issue, retry, err := r.findIssueToReuse(ctx, project, issueGroupLabel)
 	if err != nil {
 		log.Errorf("failed to find issue to reuse", "err", err)
 		return "", retry, err
 	}
-	log.Info("issue to reuse", "issue", issue)
 	// We want up to date title no matter what.
 	// This allows reflecting current group state if desired by user e.g {{ len $.Alerts.Firing() }}
 	issueSummary, err := r.tmpl.Execute(r.conf.Summary, data)
@@ -80,13 +77,13 @@ func (r *Receiver) Notify(ctx context.Context, data *alertmanager.Data, hashJira
 		log.Errorf("failed to execute summary template", "err", err)
 		return "", false, errors.Wrap(err, "generate summary from template")
 	}
-	log.Info("issue summary", "summary", issueSummary)
+	log.Infof("issue summary", "summary", issueSummary)
 	issueDesc, err := r.tmpl.Execute(r.conf.Description, data)
 	if err != nil {
 		log.Errorf("failed to execute description template", "err", err)
 		return "", false, errors.Wrap(err, "render issue description")
 	}
-
+	log.Info(issue)
 	if issue != nil {
 		// Update summary if needed.
 		if issue.Fields.Summary != issueSummary {
@@ -96,7 +93,7 @@ func (r *Receiver) Notify(ctx context.Context, data *alertmanager.Data, hashJira
 				return "", retry, err
 			}
 		}
-
+		log.Debug("msg", "found issue to reuse", "issue", issue.Key)
 		if issue.Fields.Description != issueDesc {
 			retry, err := r.updateDescription(issue.Key, issueDesc)
 			if err != nil {
@@ -104,8 +101,8 @@ func (r *Receiver) Notify(ctx context.Context, data *alertmanager.Data, hashJira
 				return "", retry, err
 			}
 		}
-
-		if len(data.Alerts.Firing()) == 0 {
+		log.Debug("msg", "issue found, reusing", "key", issue.Key, "id", issue.ID)
+		if cap(data.Alerts.Firing()) == 0 {
 			if r.conf.AutoResolve != nil {
 				log.Debug("msg", "no firing alert; resolving issue", "key", issue.Key, "label", issueGroupLabel)
 				retry, err := r.resolveIssue(issue.Key)
@@ -113,41 +110,38 @@ func (r *Receiver) Notify(ctx context.Context, data *alertmanager.Data, hashJira
 					log.Errorf("failed to resolve issue", "err", err)
 					return "", retry, err
 				}
+				log.Warningf("issue resolved", "key", issue.Key)
 				return "", false, nil
 			}
-
 			log.Debug("msg", "no firing alert; summary checked, nothing else to do.", "key", issue.Key, "label", issueGroupLabel)
 			return "", false, nil
 		}
-
+		log.Debug("msg", "issue found; summary checked, nothing else to do.", "key", issue.Key, "label", issueGroupLabel)
 		// The set of JIRA status categories is fixed, this is a safe check to make.
 		if issue.Fields.Status.StatusCategory.Key != "done" {
 			log.Debug("msg", "issue is unresolved, all is done", "key", issue.Key, "label", issueGroupLabel)
 			return "", false, nil
 		}
-
+		log.Debug("msg", "issue is resolved, reopening", "key", issue.Key, "label", issueGroupLabel)
 		if r.conf.WontFixResolution != "" && issue.Fields.Resolution != nil &&
 			issue.Fields.Resolution.Name == r.conf.WontFixResolution {
 			log.Info("msg", "issue was resolved as won't fix, not reopening", "key", issue.Key, "label", issueGroupLabel, "resolution", issue.Fields.Resolution.Name)
 			return "", false, nil
 		}
+		log.Debug("msg", "issue is resolved, reopening", "key", issue.Key, "label", issueGroupLabel)
 		b, err := r.reopen(issue.Key)
 		log.Info("msg", "issue was recently resolved, reopening", "key", issue.Key, "label", issueGroupLabel)
 		return "", b, err
 	}
-
-	if len(data.Alerts.Firing()) == 0 {
-		log.Debug("msg", "no firing alert; nothing to do.", "label", issueGroupLabel)
-		return "", false, nil
+	if cap(data.Alerts.Firing()) == 0 {
+		log.Debugf("no firing alert; nothing to do.label:%s", issueGroupLabel)
+	} else {
+		log.Warnf("no issue found, creating a new one label:%s", issueGroupLabel)
 	}
-
-	log.Info("msg", "no recent matching issue found, creating new issue", "label", issueGroupLabel)
-
 	issueType, err := r.tmpl.Execute(r.conf.IssueType, data)
 	if err != nil {
 		return "", false, errors.Wrap(err, "render issue type")
 	}
-	log.Info("issue type", "type", issueType)
 	issue = &jira.Issue{
 		Fields: &jira.IssueFields{
 			Project:     jira.Project{Key: project},
@@ -158,7 +152,6 @@ func (r *Receiver) Notify(ctx context.Context, data *alertmanager.Data, hashJira
 			Unknowns:    tcontainer.NewMarshalMap(),
 		},
 	}
-	log.Info("issue", "issue", issue)
 	if r.conf.Priority != "" {
 		issuePrio, err := r.tmpl.Execute(r.conf.Priority, data)
 		if err != nil {
@@ -167,8 +160,7 @@ func (r *Receiver) Notify(ctx context.Context, data *alertmanager.Data, hashJira
 
 		issue.Fields.Priority = &jira.Priority{Name: issuePrio}
 	}
-	log.Info("r.conf.Priority == ")
-	if len(r.conf.Components) > 0 {
+	if cap(r.conf.Components) > 0 {
 		issue.Fields.Components = make([]*jira.Component, 0, len(r.conf.Components))
 		for _, component := range r.conf.Components {
 			issueComp, err := r.tmpl.Execute(component, data)
@@ -179,13 +171,11 @@ func (r *Receiver) Notify(ctx context.Context, data *alertmanager.Data, hashJira
 			issue.Fields.Components = append(issue.Fields.Components, &jira.Component{Name: issueComp})
 		}
 	}
-	log.Info("len(r.conf.Components) == 0 ")
 	if r.conf.AddGroupLabels {
 		for k, v := range data.GroupLabels {
 			issue.Fields.Labels = append(issue.Fields.Labels, fmt.Sprintf("%s=%q", k, v))
 		}
 	}
-	log.Info("r.conf.AddGroupLabels == true ")
 	for key, value := range r.conf.Fields {
 		issue.Fields.Unknowns[key], err = deepCopyWithTemplate(ctx, value, r.tmpl, data)
 		if err != nil {
@@ -259,7 +249,7 @@ func toGroupTicketLabel(ctx context.Context, groupLabels alertmanager.KV, hashJi
 	if hashJiraLabel {
 		hash := sha512.New()
 		for _, p := range groupLabels.SortedPairs() {
-			kvString := fmt.Sprintf("%s=%q,", p.Name, p.Value)
+			kvString := fmt.Sprintf("%s:%q,", p.Name, p.Value)
 			_, _ = hash.Write([]byte(kvString)) // hash.Write can never return an error
 		}
 		return fmt.Sprintf("JIRALERT{%x}", hash.Sum(nil))
@@ -290,7 +280,7 @@ func (r *Receiver) search(ctx context.Context, project, issueLabel string) (*jir
 		return nil, retry, err
 	}
 
-	if len(issues) == 0 {
+	if cap(issues) == 0 {
 		log.Debug("msg", "no results", "query", query)
 		return nil, false, nil
 	}

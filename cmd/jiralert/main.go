@@ -157,8 +157,8 @@ func main() {
 			log.Errorf("msg", "failed to create jira issue: %v", err)
 			return
 		}
-		wb, _ := jsoniter.MarshalToString(resp)
-		writer.Write([]byte(wb))
+		wb, _ := jsoniter.Marshal(resp)
+		writer.Write(wb)
 		writer.WriteHeader(http.StatusOK)
 		return
 	})

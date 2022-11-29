@@ -1,4 +1,4 @@
-{{ define "jira.summary" }}[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.SortedPairs.Values | join " " }} {{ if gt (len .CommonLabels) (len .GroupLabels) }}({{ with .CommonLabels.Remove .GroupLabels.Names }}{{ .Values | join " " }}{{ end }}){{ end }}{{ end }}
+{{ define "jira.summary" }}{{ .Status | toUpper }} AlertName:{{ .GroupLabels.SortedPairs.Values | join "-" }}{{ end }}
 
 {{ define "jira.description" }}{{ range .Alerts.Firing }}Labels:
 {{ range .Labels.SortedPairs }} - {{ .Name }} = {{ .Value }}
@@ -6,5 +6,5 @@
 Annotations:
 {{ range .Annotations.SortedPairs }} - {{ .Name }} = {{ .Value }}
 {{ end }}
-Source: {{ .GeneratorURL }}
+MoreDetail: {{ .externalURL }}
 {{ end }}{{ end }}

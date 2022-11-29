@@ -44,7 +44,6 @@ type JiralertFunc interface {
 // New Issues a new Jiralert.
 func (je Jiralert) NewIssues(ctx context.Context) (string, error) {
 	conf := CheckConfig(ctx, je.Config)
-	//conf := je.Config
 	if err := checkTemplate(ctx); err != nil {
 		config.RequestError.WithLabelValues("template", "500").Inc()
 		return "", errors.Wrap(err, "failed to check template")
@@ -101,7 +100,6 @@ func CheckConfig(ctx context.Context, je *config.Config) *config.Config {
 		log.Warningf("Priority is empty, use default value: %v", dfc.Priority)
 		return je
 	default:
-		log.Info("config is exist")
 		return je
 	}
 }
@@ -125,6 +123,5 @@ func checkTemplate(ctx context.Context) error {
 			return checkTemplate(ctx)
 		}
 	}
-	log.Infof("template file jiralert.tmpl is exist")
 	return nil
 }

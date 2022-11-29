@@ -2,7 +2,7 @@
 # Global defaults, applied to all receivers where not explicitly overridden. Optional.
 defaults:
   # API access fields.
-  api_url: 'http://localhost:8080'
+  api_url: 'https://www.simple-labs.rest'
   user: 'poc'
   password: 'password'
 

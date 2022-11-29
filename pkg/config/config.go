@@ -309,7 +309,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		}
 	}
 
-	if len(c.Receivers) == 0 {
+	if cap(c.Receivers) == 0 {
 		return fmt.Errorf("no receivers defined")
 	}
 
@@ -324,10 +324,8 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 func (c *Config) ReceiverByName(ctx context.Context, name string) *ReceiverConfig {
 	var rc *ReceiverConfig
 	for i, _ := range c.Receivers {
-		log.Info("Checking receiver", "name", c.Receivers[i].Name)
 		// TODO: This is a bit of a hack, but it works for now.
 		name := strings.ReplaceAll(name, `\`, ``)
-		log.Infof("Checking receiver %s", name)
 		if c.Receivers[i].Name == name {
 			rc = c.Receivers[i]
 			break
@@ -355,7 +353,7 @@ var durationRE = regexp.MustCompile("^([0-9]+)(y|w|d|h|m|s|ms)$")
 // always has 365d, a week always has 7d, and a day always has 24h.
 func ParseDuration(durationStr string) (Duration, error) {
 	matches := durationRE.FindStringSubmatch(durationStr)
-	if len(matches) != 3 {
+	if cap(matches) != 3 {
 		return 0, fmt.Errorf("not a valid duration string: %q", durationStr)
 	}
 	var (
