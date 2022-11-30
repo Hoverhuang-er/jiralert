@@ -33,7 +33,7 @@ const (
 
 var (
 	// AlertFiring is the status value for a firing alert.
-	AlertFiring string
+	AlertFiring string = "firing"
 )
 
 // Pair is a key/value string pair.
@@ -151,12 +151,18 @@ type Alerts []Alert
 func (as Alerts) Firing() []Alert {
 	var res []Alert
 	for _, a := range as {
-		if a.Status == AlertFiring {
+		switch {
+		case a.Status == AlertFiring:
+			// If the status is firing, it's firing.
 			res = append(res, a)
-		} else if a.Status != "" {
+		case a.Status != AlertFiring && a.Status != "":
 			// If the status is not firing, it can be other values like resolved, suppressed, etc.
 			res = append(res, a)
-		} else {
+		case a.Status == "":
+			// If the status is empty, it's firing.
+			res = append(res, a)
+		default:
+			// If the status is not firing also empty, it's breakdown
 			break
 		}
 	}
