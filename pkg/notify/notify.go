@@ -167,7 +167,6 @@ func (r *Receiver) Notify(ctx context.Context, data *alertmanager.Data, hashJira
 			if err != nil {
 				return "", false, errors.Wrap(err, "render issue component")
 			}
-
 			issue.Fields.Components = append(issue.Fields.Components, &jira.Component{Name: issueComp})
 		}
 	}

@@ -25,11 +25,15 @@ const (
 	// AlertNameLabel is the name of the label containing the an alert's name.
 	AlertNameLabel = "alertname"
 
-	// AlertFiring is the status value for a firing alert.
-	AlertFiring = "firing"
+	//AlertFiring = "firing" move to dynamic value
 
 	// AlertResolved is the status value for a resolved alert.
 	AlertResolved = "resolved"
+)
+
+var (
+	// AlertFiring is the status value for a firing alert.
+	AlertFiring string
 )
 
 // Pair is a key/value string pair.
@@ -149,6 +153,11 @@ func (as Alerts) Firing() []Alert {
 	for _, a := range as {
 		if a.Status == AlertFiring {
 			res = append(res, a)
+		} else if a.Status != "" {
+			// If the status is not firing, it can be other values like resolved, suppressed, etc.
+			res = append(res, a)
+		} else {
+			break
 		}
 	}
 	return res
